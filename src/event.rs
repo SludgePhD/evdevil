@@ -122,7 +122,7 @@ impl InputEvent {
         let usec = self.0.time.tv_usec.clamp(0, 999_999);
 
         let dur = Duration::new(
-            sec.unsigned_abs(),
+            sec.unsigned_abs() as u64,
             (usec * 1000) as u32, // 999_999_000 fits in u32
         );
 
