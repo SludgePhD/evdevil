@@ -8,7 +8,7 @@ use crate::Evdev;
 use super::HotplugImpl;
 
 #[allow(dead_code)]
-struct Impl {
+pub struct Impl {
     _p: (),
 }
 
