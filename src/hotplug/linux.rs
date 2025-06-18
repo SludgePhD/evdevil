@@ -127,7 +127,7 @@ impl super::HotplugImpl for Impl {
             msg.msg_iov = &mut iov;
             msg.msg_iovlen = 1;
             msg.msg_control = cred_msg.as_mut_ptr().cast();
-            msg.msg_controllen = cred_msg.len();
+            msg.msg_controllen = cred_msg.len() as _;
             msg.msg_name = (&raw mut sender).cast();
             msg.msg_namelen = mem::size_of_val(&sender) as u32;
 
