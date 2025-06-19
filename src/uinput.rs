@@ -41,7 +41,7 @@ use crate::{
             uinput_abs_setup, uinput_ff_erase, uinput_ff_upload, uinput_setup,
         },
     },
-    util::{can_read, errorkind2libc, set_nonblocking},
+    util::{block_until_readable, errorkind2libc, is_readable, set_nonblocking},
 };
 
 /// Absolute axis setup information.
@@ -387,7 +387,7 @@ impl UinputDevice {
     ///
     /// Returns whether the [`UinputDevice`] was previously in non-blocking mode.
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<bool> {
-        set_nonblocking(self, nonblocking)
+        set_nonblocking(self.as_raw_fd(), nonblocking)
     }
 
     /// Creates a new [`UinputDevice`] instance that refers to the same underlying file handle.
@@ -505,12 +505,27 @@ impl UinputDevice {
         Events { dev: self }
     }
 
+    /// Deprecated alias of [`UinputDevice::is_readable`].
+    #[deprecated(note = "renamed to `is_readable`")]
+    pub fn can_read(&self) -> io::Result<bool> {
+        is_readable(self.as_raw_fd())
+    }
+
     /// Returns whether this device has any pending events that can be read without blocking.
     ///
     /// If this returns `true`, calling [`UinputDevice::events()`] and then calling
     /// [`Events::next()`] is guaranteed to not block (but only for a single event).
-    pub fn can_read(&self) -> io::Result<bool> {
-        can_read(self)
+    pub fn is_readable(&self) -> io::Result<bool> {
+        is_readable(self.as_raw_fd())
+    }
+
+    /// Blocks the calling thread until [`UinputDevice::is_readable`] would return `true`.
+    ///
+    /// This works irrespective of whether `self` is in blocking or non-blocking mode.
+    ///
+    /// If `self` is already readable, this will return immediately.
+    pub fn block_until_readable(&self) -> io::Result<()> {
+        block_until_readable(self.as_raw_fd())
     }
 
     /// Performs a requested force-feedback effect upload.

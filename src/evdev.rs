@@ -37,7 +37,7 @@ use crate::{
         EVIOCSKEYCODE_V2, EVIOCSMASK, EVIOCSREP, INPUT_KEYMAP_BY_INDEX, input_mask,
     },
     reader::EventReader,
-    util::{can_read, set_nonblocking},
+    util::{block_until_readable, is_readable, set_nonblocking},
 };
 
 /// A handle to an *event device*.
@@ -192,7 +192,7 @@ impl Evdev {
     /// for any of the other device functionality, like force-feedback effect upload, which will
     /// always block.
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<bool> {
-        set_nonblocking(self, nonblocking)
+        set_nonblocking(self.as_raw_fd(), nonblocking)
     }
 
     /// Creates a new [`Evdev`] instance that refers to the same underlying file handle.
@@ -638,6 +638,12 @@ impl Evdev {
         EventReader::new(self)
     }
 
+    /// Deprecated alias of [`Evdev::is_readable`].
+    #[deprecated(note = "renamed to `is_readable`")]
+    pub fn can_read(&self) -> io::Result<bool> {
+        self.is_readable()
+    }
+
     /// Returns whether this device has any pending *raw* events that can be read without blocking.
     ///
     /// If this returns `true`, calling [`Evdev::raw_events()`] and then calling
@@ -646,8 +652,17 @@ impl Evdev {
     /// Note that this does not work for [`Evdev`]s wrapped in an [`EventReader`], since
     /// [`EventReader`] might read and discard several events from the underlying device. For
     /// updating an [`EventReader`] without blocking, use [`EventReader::update`].
-    pub fn can_read(&self) -> io::Result<bool> {
-        can_read(self)
+    pub fn is_readable(&self) -> io::Result<bool> {
+        is_readable(self.as_raw_fd())
+    }
+
+    /// Blocks the calling thread until [`Evdev::is_readable`] would return `true`.
+    ///
+    /// This works irrespective of whether `self` is in blocking or non-blocking mode.
+    ///
+    /// If `self` is already readable, this will return immediately.
+    pub fn block_until_readable(&self) -> io::Result<()> {
+        block_until_readable(self.as_raw_fd())
     }
 
     /// Returns an iterator over the raw `evdev` events.

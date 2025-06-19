@@ -82,7 +82,7 @@ fn setup() -> io::Result<Tester> {
         evdev.path().unwrap().display(),
     );
 
-    assert!(!evdev.can_read()?);
+    assert!(!evdev.is_readable()?);
 
     Ok(Tester {
         uinput,
@@ -115,7 +115,7 @@ impl Tester {
 
                 // Ensure that every test leaves the device in a pristine state.
                 let mut pending = Vec::new();
-                while self.evdev().can_read().unwrap() {
+                while self.evdev().is_readable().unwrap() {
                     pending.push(self.evdev().raw_events().next().unwrap());
                 }
                 assert!(
@@ -126,7 +126,7 @@ impl Tester {
                 );
 
                 let mut pending = Vec::new();
-                while self.uinput.can_read().unwrap() {
+                while self.uinput.is_readable().unwrap() {
                     pending.push(self.uinput.events().next().unwrap());
                 }
                 assert!(

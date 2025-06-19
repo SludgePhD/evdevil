@@ -71,7 +71,7 @@ impl HotplugMonitor {
     /// [`HotplugMonitor::next`] will return [`None`] when the socket is in non-blocking mode and
     /// there are no incoming hotplug events.
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<bool> {
-        set_nonblocking(self, nonblocking)
+        set_nonblocking(self.as_raw_fd(), nonblocking)
     }
 }
 

@@ -5,44 +5,57 @@ use std::{
 };
 
 /// Uses `poll(2)` to determine whether reading from `fd` is possible without blocking.
-pub fn can_read(fd: &impl AsRawFd) -> io::Result<bool> {
-    fn can_read(fd: RawFd) -> io::Result<bool> {
+pub fn is_readable(fd: RawFd) -> io::Result<bool> {
+    let mut poll = libc::pollfd {
+        fd: fd.as_raw_fd(),
+        events: libc::POLLIN,
+        revents: 0,
+    };
+    let ret = unsafe { libc::poll(&mut poll, 1, 0) };
+    if ret == -1 {
+        return Err(io::Error::last_os_error());
+    }
+
+    Ok(poll.revents & libc::POLLIN != 0)
+}
+
+pub fn block_until_readable(fd: RawFd) -> io::Result<()> {
+    loop {
         let mut poll = libc::pollfd {
             fd: fd.as_raw_fd(),
             events: libc::POLLIN,
             revents: 0,
         };
-        let ret = unsafe { libc::poll(&mut poll, 1, 0) };
+        let ret = unsafe { libc::poll(&mut poll, 1, -1) };
         if ret == -1 {
             return Err(io::Error::last_os_error());
         }
 
-        Ok(poll.revents & libc::POLLIN != 0)
+        if poll.revents & libc::POLLIN != 0 {
+            // Is now readable.
+            return Ok(());
+        }
     }
-    can_read(fd.as_raw_fd())
 }
 
-pub fn set_nonblocking(fd: &impl AsRawFd, nonblocking: bool) -> io::Result<bool> {
-    fn set_nonblocking(fd: RawFd, nonblocking: bool) -> io::Result<bool> {
-        let mut flags = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
-        if flags == -1 {
-            return Err(io::Error::last_os_error());
-        }
-
-        let was_nonblocking = flags & libc::O_NONBLOCK != 0;
-        if nonblocking {
-            flags |= libc::O_NONBLOCK;
-        } else {
-            flags &= !libc::O_NONBLOCK;
-        }
-
-        let ret = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags) };
-        if ret == -1 {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(was_nonblocking)
+pub fn set_nonblocking(fd: RawFd, nonblocking: bool) -> io::Result<bool> {
+    let mut flags = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
+    if flags == -1 {
+        return Err(io::Error::last_os_error());
     }
-    set_nonblocking(fd.as_raw_fd(), nonblocking)
+
+    let was_nonblocking = flags & libc::O_NONBLOCK != 0;
+    if nonblocking {
+        flags |= libc::O_NONBLOCK;
+    } else {
+        flags &= !libc::O_NONBLOCK;
+    }
+
+    let ret = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags) };
+    if ret == -1 {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(was_nonblocking)
 }
 
 pub fn errorkind2libc(kind: io::ErrorKind) -> Option<c_int> {

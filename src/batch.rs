@@ -145,6 +145,8 @@ impl BatchReader {
                 _ => false,
             })
             .map(|i| i + len);
+        // FIXME: if we've read 2 or more reports, this will leave one or more SYN_REPORTs in the
+        // buffer
 
         Ok(pos.map(|i| self.buf.drain(..=i)))
     }

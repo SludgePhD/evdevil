@@ -51,7 +51,7 @@ fn roundtrip_raw2(
 fn roundtrip_echo(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
     roundtrip_raw(t, events)?;
 
-    assert!(t.uinput.can_read()?);
+    assert!(t.uinput.is_readable()?);
     for expected in events {
         let recv = t.uinput.events().next().unwrap()?;
         if !events_eq(&recv, expected) {
@@ -66,7 +66,7 @@ fn evdev2uinput(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
     t.evdev_mut().write(events)?;
 
     if !events.is_empty() {
-        assert!(t.uinput.can_read()?);
+        assert!(t.uinput.is_readable()?);
     }
     for expected in events {
         let recv = t.uinput.events().next().unwrap()?;
@@ -74,7 +74,7 @@ fn evdev2uinput(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
             panic!("expected {expected:?} in uinput device, got {recv:?}");
         }
     }
-    if t.uinput.can_read()? {
+    if t.uinput.is_readable()? {
         panic!("found pending event: {:?}", t.uinput.events().next());
     }
 
@@ -106,27 +106,30 @@ fn check_events(actual: &[InputEvent], expected: &[InputEvent]) {
 }
 
 #[test]
-fn test_can_read() -> io::Result<()> {
+fn test_evdev_is_readable() -> io::Result<()> {
     let tester = Tester::get();
 
-    assert!(!tester.evdev().can_read()?);
+    assert!(!tester.evdev().is_readable()?);
 
     let event = RelEvent::new(Rel::DIAL, -42).into();
     tester.uinput.write(&[event])?;
 
-    assert!(tester.evdev().can_read()?);
+    tester.evdev().block_until_readable()?;
+    assert!(tester.evdev().is_readable()?);
+    tester.evdev().block_until_readable()?;
+
     let recv = tester.evdev().raw_events().next().unwrap()?;
     if !events_eq(&recv, &event) {
         panic!("expected {event:?}, got {recv:?}");
     }
 
     // `EV_SYN`
-    assert!(tester.evdev().can_read()?);
+    assert!(tester.evdev().is_readable()?);
     let ev = tester.evdev().raw_events().next().unwrap()?;
     assert_eq!(ev.event_type(), EventType::SYN);
 
     assert!(
-        !tester.evdev().can_read()?,
+        !tester.evdev().is_readable()?,
         "unexpected pending event: {:?}",
         tester.evdev().raw_events().next()
     );
@@ -172,14 +175,14 @@ fn test_led() -> io::Result<()> {
     assert_eq!(tester.evdev().led_state()?, BitSet::new());
 
     thread::sleep(Duration::from_millis(50));
-    assert!(!tester.evdev().can_read()?);
-    assert!(!tester.uinput.can_read()?);
+    assert!(!tester.evdev().is_readable()?);
+    assert!(!tester.uinput.is_readable()?);
 
     // For some reason, the kernel will insert "LED on" and "LED off" events before the next event
     // the uinput device emits, so drain them here.
     tester.uinput.write(&[RelEvent::new(Rel::DIAL, 7).into()])?;
     let mut ev = Vec::new();
-    while tester.evdev().can_read()? {
+    while tester.evdev().is_readable()? {
         ev.push(tester.evdev().raw_events().next().unwrap()?);
     }
     eprintln!("draining events: {ev:?}");
@@ -197,8 +200,8 @@ fn test_led() -> io::Result<()> {
     assert_eq!(tester.evdev().led_state()?, BitSet::new());
 
     thread::sleep(Duration::from_millis(50));
-    assert!(!tester.evdev().can_read()?);
-    assert!(!tester.uinput.can_read()?);
+    assert!(!tester.evdev().is_readable()?);
+    assert!(!tester.uinput.is_readable()?);
 
     Ok(())
 }
@@ -268,7 +271,7 @@ fn test_overflow() -> io::Result<()> {
     let events = vec![RelEvent::new(Rel::DIAL, 1).into(); OVERFLOW_COUNT];
     tester.uinput.write(&events)?;
 
-    assert!(tester.evdev().can_read()?);
+    assert!(tester.evdev().is_readable()?);
 
     tester.evdev().set_nonblocking(true)?;
     let mut count = 0;
@@ -459,11 +462,11 @@ fn test_event_mask() -> io::Result<()> {
 
     tester.evdev_mut().set_event_mask(&BitSet::new())?;
     assert_eq!(tester.evdev().event_mask()?, BitSet::new());
-    assert!(!tester.evdev().can_read()?);
+    assert!(!tester.evdev().is_readable()?);
 
     // `REL_DIAL` events shouldn't arrive.
     tester.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-    assert!(!tester.evdev().can_read()?);
+    assert!(!tester.evdev().is_readable()?);
 
     tester.evdev_mut().set_event_mask(&event_mask)?;
     Ok(())
@@ -485,11 +488,11 @@ fn test_rel_mask() -> io::Result<()> {
 
     tester.evdev_mut().set_rel_mask(&BitSet::new())?;
     assert_eq!(tester.evdev().rel_mask()?, BitSet::new());
-    assert!(!tester.evdev().can_read()?);
+    assert!(!tester.evdev().is_readable()?);
 
     // `REL_DIAL` events shouldn't arrive.
     tester.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-    assert!(!tester.evdev().can_read()?);
+    assert!(!tester.evdev().is_readable()?);
 
     tester.evdev_mut().set_rel_mask(&rel_mask)?;
     Ok(())

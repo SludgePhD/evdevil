@@ -13,7 +13,7 @@ fn get_set_repeat() -> io::Result<()> {
 
     let rep = t.evdev().key_repeat()?;
     assert_eq!(rep, Some(KEY_REPEAT));
-    assert!(!t.evdev().can_read()?);
+    assert!(!t.evdev().is_readable()?);
 
     // Use uinput to change the repeat settings
     t.uinput
@@ -21,7 +21,7 @@ fn get_set_repeat() -> io::Result<()> {
         .set_key_repeat(KeyRepeat::new(100, 20))?
         .finish()?;
 
-    assert!(t.uinput.can_read()?);
+    assert!(t.uinput.is_readable()?);
     match t.uinput.events().next().unwrap()?.kind() {
         Some(EventKind::Repeat(_)) => {}
         e => panic!("unexpected event {e:?}"),
@@ -31,7 +31,7 @@ fn get_set_repeat() -> io::Result<()> {
         e => panic!("unexpected event {e:?}"),
     }
 
-    assert!(t.evdev().can_read()?);
+    assert!(t.evdev().is_readable()?);
     match t.evdev().raw_events().next().unwrap()?.kind() {
         Some(EventKind::Repeat(_)) => {}
         e => panic!("unexpected event {e:?}"),
@@ -44,11 +44,11 @@ fn get_set_repeat() -> io::Result<()> {
         Some(EventKind::Syn(ev)) if ev.syn() == Syn::REPORT => {}
         e => panic!("unexpected event {e:?}"),
     }
-    assert!(!t.evdev().can_read()?);
+    assert!(!t.evdev().is_readable()?);
 
     // Use evdev to change the repeat settings back
     t.evdev().set_key_repeat(KEY_REPEAT)?;
-    assert!(t.uinput.can_read()?);
+    assert!(t.uinput.is_readable()?);
     match t.uinput.events().next().unwrap()?.kind() {
         Some(EventKind::Repeat(_)) => {}
         e => panic!("unexpected event {e:?}"),
@@ -62,8 +62,8 @@ fn get_set_repeat() -> io::Result<()> {
     // the `REP_*` events when subsequent tests use `uinput.write`.
     // So we write a `Rel` event and drain the evdev buffer to avoid that.
     t.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-    assert!(t.evdev().can_read()?);
-    while t.evdev().can_read()? {
+    assert!(t.evdev().is_readable()?);
+    while t.evdev().is_readable()? {
         t.evdev().raw_events().next().unwrap()?;
     }
 

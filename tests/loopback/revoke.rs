@@ -12,14 +12,14 @@ fn revoke() -> io::Result<()> {
     let t = Tester::get();
     let dev = t.evdev();
     let dev2 = Evdev::open(t.evdev().path().unwrap())?;
-    assert!(!dev2.can_read()?);
+    assert!(!dev2.is_readable()?);
 
     // After revocation, dev2 shouldn't receive any events anymore
     dev2.revoke()?;
     t.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
 
-    assert!(dev.can_read()?);
-    assert!(!dev2.can_read()?);
+    assert!(dev.is_readable()?);
+    assert!(!dev2.is_readable()?);
 
     // Further uses of `dev2` (via `write` or `ioctl`) result in `ENODEV`.
     match dev2.revoke() {
@@ -38,7 +38,7 @@ fn revoke() -> io::Result<()> {
         e => panic!("unexpected result: {e:?}"),
     }
 
-    while dev.can_read()? {
+    while dev.is_readable()? {
         dev.raw_events().next().unwrap()?;
     }
 

@@ -138,8 +138,8 @@ impl<'a> FFTest<'a> {
         // that start or stop the effect when events are submitted by subsequent tests.
         // To get around that we submit a `RelEvent` and then drain the evdev, ignoring all events.
         self.t.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-        assert!(self.t.evdev().can_read()?);
-        while self.t.evdev().can_read()? {
+        assert!(self.t.evdev().is_readable()?);
+        while self.t.evdev().is_readable()? {
             self.t.evdev().raw_events().next().unwrap()?;
         }
         Ok(())
