@@ -658,7 +658,9 @@ impl Evdev {
 
     /// Blocks the calling thread until [`Evdev::is_readable`] would return `true`.
     ///
-    /// This works irrespective of whether `self` is in blocking or non-blocking mode.
+    /// This will block even if `self` is in non-blocking mode (via [`Evdev::set_nonblocking`]).
+    /// For checking whether events can be read from `self` without blocking, use
+    /// [`Evdev::is_readable`], which will *never* block.
     ///
     /// If `self` is already readable, this will return immediately.
     pub fn block_until_readable(&self) -> io::Result<()> {
