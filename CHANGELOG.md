@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.2
+
+- Add `serde` feature that implements `Serialize` and `Deserialize` for some of the event code
+  wrapper types like `Key`, `Rel`, `Abs`, etc.
+
 ## v0.1.1
 
 - Renamed `Evdev::can_read` and `UinputDevice::can_read` to `Evdev::is_readable`
