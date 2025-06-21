@@ -2,6 +2,21 @@
 //!
 //! All device event iterators will yield [`InputEvent`], the base event type.
 //!
+//! Events carry the following information:
+//!
+//! - **Timestamp** ([`InputEvent::time`]): The time at which the event has been inserted into the
+//!   kernel buffer. The default time source is the system's real-time clock, which is also used by
+//!   [`SystemTime::now`]. It can be changed by calling [`Evdev::set_clockid`].
+//! - **Event Type** ([`InputEvent::event_type`]): The broad category of event. The [`EventType`]
+//!   determines which of the event wrappers listed below is responsible.
+//! - **Event Code** ([`InputEvent::raw_code`]): A `u16` identifying the button, axis, or other
+//!   object affected by the event. This is typically *wrapped* in a type like [`Syn`], [`Key`],
+//!   [`Abs`] or [`Rel`] and accessed from a specific event wrapper.
+//! - **Event Value** ([`InputEvent::raw_value`]): An `i32` describing *what* happened to the object
+//!   identified by the code. This can be the new state of an [`Abs`] axis, an incremental movement
+//!   of a [`Rel`] axis, the new state (pressed/released/repeated) or a [`Key`] or [`Switch`], and
+//!   so on.
+//!
 //! [`InputEvent::kind`] can be used to obtain an [`EventKind`], which can be conveniently `match`ed
 //! on to handle the different types of events.
 //!
@@ -22,8 +37,48 @@
 //!
 //! All of these event types can be converted to [`EventKind`] and [`InputEvent`] via [`From`] and
 //! [`Into`], and can be [`Deref`]erenced to obtain the [`InputEvent`] they wrap.
+//!
+//! # Serde support
+//!
+//! If the `serde` feature is enabled, implementations of [`Serialize`] and [`Deserialize`] will be
+//! provided for the following types:
+//!
+//! - [`Abs`]
+//! - [`Key`]
+//! - [`Rel`]
+//! - [`Misc`]
+//! - [`Led`]
+//! - [`Switch`]
+//! - [`Sound`]
+//!
+//! For human-readable formats, the serde representation will use the evdev constant name if the
+//! value has one (eg. `KEY_F1`, `ABS_Y`, ...), and the raw [`u16`] code if it does not.
+//! Deserialization from a human-readable format will accept either.
+//!
+//! Note that this means that when a new key or axis name is added in a later version of this crate,
+//! older versions will not be able to deserialize it.
+//! `evdevil` guarantees only old->new compatibility between non-breaking versions, not new->old.
+//!
+//! Note also that some values have multiple names.
+//! For example, [`Key::BTN_TRIGGER_HAPPY`] is the same value as [`Key::BTN_TRIGGER_HAPPY1`].
+//! Deserialization will accept either name, but serialization has to pick a single name, which is
+//! typically the first one with a given value, but is not generally guaranteed to be any specific
+//! constant name.
+//!
+//! For non-human-readable formats, the raw numeric code is always used, and formats that aren't
+//! self-describing (like [postcard]) are supported.
+//! There is also no compatibility concern in case new key or axis names are added in later
+//! versions.
+//!
+//! [`Evdev::set_clockid`]: crate::Evdev::set_clockid
+//! [`Serialize`]: ::serde::Serialize
+//! [`Deserialize`]: ::serde::Deserialize
+//! [postcard]: https://github.com/jamesmunns/postcard
 
 pub(crate) mod codes;
+
+#[cfg(any(test, feature = "serde"))]
+mod serde;
 
 use std::fmt;
 use std::ops::Deref;
