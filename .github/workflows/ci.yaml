@@ -31,7 +31,7 @@ jobs:
       run: cargo install sludge-cicd --debug
 
     - name: Run CI/CD
-      run: sludge-cicd
+      run: sludge-cicd --all-features
 
   build:
     name: Build only
@@ -61,7 +61,9 @@ jobs:
       run: rustup target add ${{ matrix.target }}
 
     - name: Build the library
-      run: cargo build --target ${{ matrix.target }}
+      run: |
+        cargo build --target ${{ matrix.target }}
+        cargo build --target ${{ matrix.target }} --all-features
 
   ci:
     name: CI
@@ -92,7 +94,7 @@ jobs:
       run: cargo install sludge-cicd --debug
 
     - name: Run CI
-      run: sludge-cicd --target ${{ matrix.target }}
+      run: sludge-cicd --target ${{ matrix.target }} --all-features
 
   cd:
     name: CD
@@ -117,7 +119,7 @@ jobs:
       run: cargo install sludge-cicd --debug
 
     - name: Run CI/CD
-      run: sludge-cicd
+      run: sludge-cicd --all-features
       env:
         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

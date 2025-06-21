@@ -842,6 +842,11 @@ impl Key {
     pub const fn raw(self) -> u16 {
         self.0
     }
+
+    pub fn name(self) -> Option<VariantName> {
+        // This one has no shared prefix, since both `KEY_` and `BTN_` constants exist.
+        Some(VariantName::new("", self.variant_name()?))
+    }
 }
 
 impl FromStr for Key {
@@ -894,6 +899,10 @@ impl Rel {
     pub const fn raw(self) -> u16 {
         self.0
     }
+
+    pub fn name(self) -> Option<VariantName> {
+        Some(VariantName::new("REL_", self.variant_name()?))
+    }
 }
 
 impl FromStr for Rel {
@@ -909,8 +918,8 @@ impl FromStr for Rel {
 
 impl fmt::Debug for Rel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => write!(f, "REL_{name}"),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Rel({:#x})", self.0),
         }
     }
@@ -980,6 +989,10 @@ impl Abs {
     pub const fn raw(self) -> u16 {
         self.0
     }
+
+    pub fn name(self) -> Option<VariantName> {
+        Some(VariantName::new("ABS_", self.variant_name()?))
+    }
 }
 
 impl FromStr for Abs {
@@ -995,8 +1008,8 @@ impl FromStr for Abs {
 
 impl fmt::Debug for Abs {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => write!(f, "ABS_{name}"),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Abs({:#x})", self.0),
         }
     }
@@ -1039,6 +1052,10 @@ impl Switch {
     pub const fn raw(self) -> u16 {
         self.0
     }
+
+    pub fn name(self) -> Option<VariantName> {
+        Some(VariantName::new("SW_", self.variant_name()?))
+    }
 }
 
 impl FromStr for Switch {
@@ -1054,8 +1071,8 @@ impl FromStr for Switch {
 
 impl fmt::Debug for Switch {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => write!(f, "SW_{name}"),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Switch({:#x})", self.0),
         }
     }
@@ -1096,6 +1113,10 @@ impl Misc {
     pub const fn raw(self) -> u16 {
         self.0
     }
+
+    pub fn name(self) -> Option<VariantName> {
+        Some(VariantName::new("MSC_", self.variant_name()?))
+    }
 }
 
 impl FromStr for Misc {
@@ -1111,8 +1132,8 @@ impl FromStr for Misc {
 
 impl fmt::Debug for Misc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => write!(f, "MSC_{name}"),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Misc({:#x})", self.0),
         }
     }
@@ -1179,6 +1200,10 @@ impl Led {
     pub const fn raw(self) -> u16 {
         self.0
     }
+
+    pub fn name(self) -> Option<VariantName> {
+        Some(VariantName::new("LED_", self.variant_name()?))
+    }
 }
 
 impl FromStr for Led {
@@ -1194,8 +1219,8 @@ impl FromStr for Led {
 
 impl fmt::Debug for Led {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => write!(f, "LED_{name}"),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Led({:#x})", self.0),
         }
     }
@@ -1233,10 +1258,21 @@ ffi_enum! {
 }
 bitvalue!(Sound);
 
+impl FromStr for Sound {
+    type Err = UnknownVariant;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.strip_prefix("SND_") {
+            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
+            None => Err(UnknownVariant { _p: () }),
+        }
+    }
+}
+
 impl fmt::Debug for Sound {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => write!(f, "SND_{name}"),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Sound({:#x})", self.0),
         }
     }
@@ -1251,6 +1287,37 @@ impl Sound {
     #[inline]
     pub const fn raw(self) -> u16 {
         self.0
+    }
+
+    pub fn name(self) -> Option<VariantName> {
+        Some(VariantName::new("SND_", self.variant_name()?))
+    }
+}
+
+/// A [`Display`]able, human-readable name of an evdev constant.
+///
+/// [`Display`]: fmt::Display
+pub struct VariantName {
+    prefix: &'static str,
+    variant: &'static str,
+}
+
+impl VariantName {
+    fn new(prefix: &'static str, variant: &'static str) -> Self {
+        Self { prefix, variant }
+    }
+}
+
+impl fmt::Display for VariantName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.prefix)?;
+        f.write_str(self.variant)
+    }
+}
+
+impl fmt::Debug for VariantName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        <Self as fmt::Display>::fmt(self, f)
     }
 }
 
@@ -1299,6 +1366,7 @@ mod tests {
         assert_eq!(format!("{:?}", Repeat::PERIOD), "REP_PERIOD");
         assert_eq!(format!("{:?}", Repeat(0xffff)), "Repeat(0xffff)");
 
+        assert_eq!("SND_TONE".parse(), Ok(Sound::TONE));
         assert_eq!(format!("{:?}", Sound::TONE), "SND_TONE");
         assert_eq!(format!("{:?}", Sound(0xffff)), "Sound(0xffff)");
     }
