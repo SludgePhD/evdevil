@@ -40,7 +40,9 @@ use evdevil::{
 const TEST_DEVICE_NAME: &str = "-@-rust-loopback-test-@-";
 
 fn setup() -> io::Result<Tester> {
-    env_logger::init();
+    env_logger::builder()
+        .filter_module(env!("CARGO_PKG_NAME"), log::LevelFilter::Trace)
+        .init();
 
     let uinput = setup_uinput_device()?;
 

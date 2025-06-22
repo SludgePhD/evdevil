@@ -53,7 +53,7 @@ impl<'de, T: FromStr, F: Fn(u16) -> T> de::Visitor<'de> for NamedOrRawVisitor<T,
             Err(_) => {
                 return Err(E::invalid_value(
                     de::Unexpected::Unsigned(v.into()),
-                    &"unsigned 16-bit code",
+                    &"unsigned 16-bit value",
                 ));
             }
         };
@@ -69,7 +69,7 @@ impl<'de, T: FromStr, F: Fn(u16) -> T> de::Visitor<'de> for NamedOrRawVisitor<T,
             Err(_) => {
                 return Err(E::invalid_value(
                     de::Unexpected::Unsigned(v.into()),
-                    &"unsigned 16-bit code",
+                    &"unsigned 16-bit value",
                 ));
             }
         };

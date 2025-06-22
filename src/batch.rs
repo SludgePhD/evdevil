@@ -122,7 +122,18 @@ impl BatchReader {
     ///
     /// Note that this does not distinguish between the different SYN events – SYN_REPORT and
     /// SYN_DROPPED will both cause all preceding events to be yielded to the caller.
-    pub(crate) fn fill(&mut self, file: &File) -> io::Result<Option<BatchDrain<'_>>> {
+    pub(crate) fn read(&mut self, file: &File) -> io::Result<Option<BatchDrain<'_>>> {
+        fn report_or_dropped(ev: &InputEvent) -> bool {
+            match ev.kind() {
+                Some(EventKind::Syn(ev)) => ev.syn() == Syn::REPORT || ev.syn() == Syn::DROPPED,
+                _ => false,
+            }
+        }
+
+        if let Some(i) = self.buf.iter().position(report_or_dropped) {
+            return Ok(Some(self.buf.drain(..=i)));
+        }
+
         self.buf.reserve(BATCH_READ_SIZE);
 
         // note that `dest` may be bigger than `BATCH_READ_SIZE`
@@ -138,17 +149,11 @@ impl BatchReader {
         // Unknown SYN_* events are kept in the buffer until committed by a SYN_REPORT or discarded
         // by a SYN_DROPPED.
         let new = &self.buf[len..];
-        let pos = new
-            .iter()
-            .position(|ev| match ev.kind() {
-                Some(EventKind::Syn(ev)) => ev.syn() == Syn::REPORT || ev.syn() == Syn::DROPPED,
-                _ => false,
-            })
-            .map(|i| i + len);
-        // FIXME: if we've read 2 or more reports, this will leave one or more SYN_REPORTs in the
-        // buffer
+        let pos = new.iter().position(report_or_dropped);
+        // Note that we might have read more than a single report. In that case, we return the first
+        // one and the next call will return the next report in the buffer.
 
-        Ok(pos.map(|i| self.buf.drain(..=i)))
+        Ok(pos.map(|i| self.buf.drain(..=i + len)))
     }
 }
 

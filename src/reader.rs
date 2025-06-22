@@ -12,8 +12,8 @@ use crate::{
     bits::{BitSet, BitValue},
     drop::on_drop,
     event::{
-        Abs, AbsEvent, EventKind, InputEvent, Key, KeyEvent, KeyState, Led, LedEvent, Sound,
-        SoundEvent, Switch, SwitchEvent, Syn, SynEvent,
+        Abs, AbsEvent, EventKind, EventType, InputEvent, Key, KeyEvent, KeyState, Led, LedEvent,
+        Sound, SoundEvent, Switch, SwitchEvent, Syn, SynEvent,
     },
     raw::input::EVIOCGMTSLOTS,
 };
@@ -237,9 +237,8 @@ impl DeviceState {
         let now = Instant::now();
         let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
 
-        let mut did_emit = false;
+        let len_before = queue.len();
         let mut emit = |ev: InputEvent| {
-            did_emit = true;
             queue.push_back(ev.with_time(self.last_event));
         };
 
@@ -291,7 +290,12 @@ impl DeviceState {
         // emit an empty report consisting of just a SYN_REPORT event after a SYN_DROPPED.
         // It is useful after the `EventReader` is just constructed though, since the event would
         // otherwise be missing.
-        if did_emit {
+        if queue.len() != len_before {
+            log::debug!(
+                "resync injected {} events -> adding SYN_REPORT",
+                queue.len() - len_before
+            );
+            assert_ne!(queue.back().unwrap().event_type(), EventType::SYN);
             queue.push_back(SynEvent::new(Syn::REPORT).with_time(self.last_event));
         }
 
@@ -530,22 +534,27 @@ impl EventReader {
         Events(self)
     }
 
-    fn next_event(&mut self) -> Option<io::Result<InputEvent>> {
-        if let Some(event) = self.queue.pop_front() {
-            return Some(Ok(event));
+    /// Fetches the next batch of events from the device.
+    ///
+    /// The returned [`Report`] can be iterated over to yield the events contained in the batch.
+    pub fn next_report(&mut self) -> io::Result<Report<'_>> {
+        if self.queue.is_empty() {
+            self.refill()?;
         }
 
-        // No more queued events to deliver. We've been asked to block until the next one is
-        // available, so do that.
-        // Incoming raw events get batch-read into `self.incoming.`
+        Ok(Report {
+            reader: self,
+            done: false,
+        })
+    }
+
+    fn refill(&mut self) -> io::Result<()> {
         loop {
-            let batch = match self.batch.fill(&self.evdev.file) {
-                Ok(None) => continue, // read some events, but no SYN_x event
-                Ok(Some(batch)) => batch,
-                // Return `None` when the device is in non-blocking mode and no events are available.
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
-                Err(e) => return Some(Err(e)),
+            let batch = match self.batch.read(&self.evdev.file)? {
+                None => continue, // read some events, but no SYN_x event
+                Some(batch) => batch,
             };
+            log::trace!("read batch: {:?}", batch.as_slice());
 
             // We've been handed a `batch` of events, the last of which is guaranteed to either be
             // a SYN_REPORT or a SYN_DROPPED.
@@ -571,8 +580,7 @@ impl EventReader {
                         }
                         self.queue.extend(batch);
 
-                        let event = self.queue.pop_front().unwrap(/* not empty */);
-                        return Some(Ok(event));
+                        return Ok(());
                     }
                 }
                 Syn::DROPPED => {
@@ -584,19 +592,36 @@ impl EventReader {
                     self.discard_events = true;
 
                     // Fetch device state and synthesize events.
-                    if let Err(e) = self.state.resync(&self.evdev, &mut self.queue) {
-                        return Some(Err(e));
+                    self.state.resync(&self.evdev, &mut self.queue)?;
+
+                    if !self.queue.is_empty() {
+                        return Ok(());
                     }
-                    // Start sending the synthetic events to the consumer.
-                    if let Some(ev) = self.queue.pop_front() {
-                        return Some(Ok(ev));
-                    }
+
                     // We will return to normal operation once the synthetic events have been
                     // cleared out and all events until the next `SYN_REPORT` have been discarded.
                 }
                 _ => unreachable!("unexpected SYN event at the end of a batch: {syn:?}"),
             }
         }
+    }
+
+    fn next_event(&mut self) -> Option<io::Result<InputEvent>> {
+        if self.queue.is_empty() {
+            // No more queued events to deliver. We've been asked to block until the next one is
+            // available, so do that.
+            // Incoming raw events get batch-read into `self.queue`
+            match self.refill() {
+                Ok(()) => {}
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
+                Err(e) => return Some(Err(e)),
+            }
+        }
+
+        return Some(Ok(self
+            .queue
+            .pop_front()
+            .expect("queue should not be empty after refill")));
     }
 }
 
@@ -648,5 +673,30 @@ impl Iterator for IntoEvents {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next_event()
+    }
+}
+
+/// An iterator over a batch of [`InputEvent`]s, terminated with a `SYN_REPORT` event.
+///
+/// Returned by [`EventReader::next_report`].
+#[derive(Debug)]
+pub struct Report<'a> {
+    reader: &'a mut EventReader,
+    done: bool,
+}
+
+impl<'a> Iterator for Report<'a> {
+    type Item = InputEvent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done {
+            return None;
+        }
+
+        let event = self.reader.queue.pop_front().unwrap();
+        if event.event_type() == EventType::SYN {
+            self.done = true;
+        }
+        Some(event)
     }
 }

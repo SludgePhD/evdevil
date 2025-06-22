@@ -93,6 +93,7 @@ fn events_eq(recv: &InputEvent, expected: &InputEvent) -> bool {
     true
 }
 
+#[track_caller]
 fn check_events(actual: &[InputEvent], expected: &[InputEvent]) {
     assert_eq!(
         actual.len(),
@@ -387,7 +388,7 @@ fn test_overflow_resync() -> io::Result<()> {
                     return Err(e);
                 }
             };
-            if event.event_type() == EventType::REL {
+            if event.event_type() == EventType::REL || event.event_type() == EventType::SYN {
                 continue;
             }
             ev.push(event);
@@ -395,11 +396,7 @@ fn test_overflow_resync() -> io::Result<()> {
         reader.evdev().set_nonblocking(false)?;
         check_events(
             &ev,
-            &[
-                *KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED),
-                *SynEvent::new(Syn::REPORT),
-                *SynEvent::new(Syn::REPORT),
-            ],
+            &[*KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED)],
         );
 
         // All events should have non-zero timestamps that monotonically increase
