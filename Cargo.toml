@@ -5,6 +5,7 @@ edition = "2024"
 license = "0BSD"
 description = "Bindings to Linux' input device APIs: evdev and uinput"
 categories = ["os::linux-apis", "hardware-support"]
+repository = "https://github.com/SludgePhD/evdevil"
 rust-version = "1.85"
 
 [dependencies]
