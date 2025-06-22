@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.1.3
+
+- Add `EventReader::next_report` for fetching whole `Report`s from the device rather than events.
+
 ## v0.1.2
 
 - Add `serde` feature that implements `Serialize` and `Deserialize` for some of the event code
