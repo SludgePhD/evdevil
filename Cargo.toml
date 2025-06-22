@@ -6,6 +6,7 @@ license = "0BSD"
 description = "Bindings to Linux' input device APIs: evdev and uinput"
 categories = ["os::linux-apis", "hardware-support"]
 repository = "https://github.com/SludgePhD/evdevil"
+keywords = ["gamepad", "joystick", "keyboard", "mouse", "touchscreen"]
 rust-version = "1.85"
 
 [dependencies]
