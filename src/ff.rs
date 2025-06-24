@@ -938,3 +938,18 @@ impl From<Inertia> for Condition {
         value.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn send_sync() {
+        fn assert<T: Send + Sync>() {}
+
+        assert::<Effect<'static>>();
+        assert::<EffectKind<'static>>();
+        assert::<EffectType>();
+        assert::<EffectId>();
+    }
+}

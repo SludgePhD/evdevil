@@ -31,3 +31,20 @@ pub use keymap_entry::{KeymapEntry, Scancode};
 pub use reader::EventReader;
 pub use slot::Slot;
 pub use version::Version;
+
+#[cfg(test)]
+mod tests {
+    use crate::{hotplug::HotplugMonitor, uinput::UinputDevice};
+
+    use super::*;
+
+    #[test]
+    fn send_sync() {
+        fn assert<T: Send + Sync>() {}
+
+        assert::<Evdev>();
+        assert::<EventReader>();
+        assert::<UinputDevice>();
+        assert::<HotplugMonitor>();
+    }
+}
