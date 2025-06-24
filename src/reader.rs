@@ -450,22 +450,22 @@ impl EventReader {
         }
     }
 
-    /// Returns the [`EventReader`]'s view of the device's key state.
+    /// Returns a [`BitSet`] of all [`Key`]s that are currently pressed.
     pub fn key_state(&self) -> &BitSet<Key> {
         &self.state.keys
     }
 
-    /// Returns the [`EventReader`]'s view of the device's LED state.
+    /// Returns a [`BitSet`] of all [`Led`]s that are currently on.
     pub fn led_state(&self) -> &BitSet<Led> {
         &self.state.leds
     }
 
-    /// Returns the [`EventReader`]'s view of the device's sound state.
+    /// Returns a [`BitSet`] of all [`Sound`]s that have been requested to play.
     pub fn sound_state(&self) -> &BitSet<Sound> {
         &self.state.sounds
     }
 
-    /// Returns the [`EventReader`]'s view of the device's switch state.
+    /// Returns a [`BitSet`] of all [`Switch`]es that are currently active or closed.
     pub fn switch_state(&self) -> &BitSet<Switch> {
         &self.state.switches
     }
