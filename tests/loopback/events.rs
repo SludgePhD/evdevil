@@ -502,17 +502,19 @@ fn reader_reports_clear() -> io::Result<()> {
     tester.evdev().set_nonblocking(true)?;
     tester.with_reader(|uinput, reader| {
         uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-        let report = reader.next_report()?.collect::<Vec<InputEvent>>();
+        let report = reader
+            .reports()
+            .next()
+            .unwrap()?
+            .collect::<Vec<InputEvent>>();
         check_events(
             &report,
             &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
         );
 
-        // Fetching a report should remove its events from the queue.
-        assert_eq!(
-            reader.next_report().unwrap_err().kind(),
-            io::ErrorKind::WouldBlock
-        );
+        // Fetching a report should remove its events from the queue, so there should be no more
+        // reports now.
+        assert!(reader.reports().next().is_none());
 
         // Using the events iterator should also not yield the old events anymore.
         let ev = reader.events().next();

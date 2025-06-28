@@ -283,17 +283,12 @@ impl DeviceState {
         };
 
         sync_bitset(&mut self.keys, src.keys, |key, on| {
-            emit(
-                KeyEvent::new(
-                    key,
-                    if on {
-                        KeyState::PRESSED
-                    } else {
-                        KeyState::RELEASED
-                    },
-                )
-                .into(),
-            );
+            let state = if on {
+                KeyState::PRESSED
+            } else {
+                KeyState::RELEASED
+            };
+            emit(KeyEvent::new(key, state).into());
         });
         sync_bitset(&mut self.leds, src.leds, |led, on| {
             emit(LedEvent::new(led, on).into());
@@ -495,6 +490,15 @@ impl EventReader {
     /// discarding them.
     ///
     /// This does not block.
+    ///
+    /// This method can be used when the application isn't interested in processing events or
+    /// reports itself, and only wants to know what the current state of the input device is.
+    /// [`EventReader::update`] is potentially faster than calling [`Evdev::key_state`] and other
+    /// [`Evdev`] getters, since each of the [`Evdev`] getters perform a syscall.
+    ///
+    /// After a call to [`EventReader::update`], the up-to-date device state can be retrieved with
+    /// the [`EventReader::key_state`], [`EventReader::led_state`], and other [`EventReader`]
+    /// methods without incurring any additional syscalls.
     pub fn update(&mut self) -> io::Result<()> {
         let now = Instant::now();
         let _d = on_drop(|| log::trace!("`EventReader::update` took {:?}", now.elapsed()));
@@ -502,9 +506,9 @@ impl EventReader {
         let was_nonblocking = self.evdev.set_nonblocking(true)?;
 
         let mut count = 0;
-        let mut events = self.events();
+        let mut reports = self.reports();
         let err = loop {
-            match events.next() {
+            match reports.next() {
                 None => break None,
                 Some(Ok(_)) => count += 1,
                 Some(Err(e)) => break Some(e),
@@ -512,10 +516,15 @@ impl EventReader {
         };
         log::trace!("`EventReader::update` processed {count} events");
 
-        let res = self.evdev.set_nonblocking(was_nonblocking);
+        let res = if !was_nonblocking {
+            self.evdev.set_nonblocking(false).map(drop)
+        } else {
+            // Avoid the syscall if the device was already in non-blocking mode.
+            Ok(())
+        };
         match err {
             Some(e) => Err(e),
-            None => res.map(drop),
+            None => res,
         }
     }
 
@@ -599,6 +608,11 @@ impl EventReader {
     /// more events are available.
     /// If the device is *not* in non-blocking mode, the iterator will block until more events
     /// arrive.
+    ///
+    /// **Note**: Retrieving an event with this iterator will remove that event from the [`Report`]
+    /// it belongs to if that report is later fetched with [`EventReader::reports`].
+    /// It is best to stick to either per-event or per-report processing in your program to avoid
+    /// this.
     pub fn events(&mut self) -> Events<'_> {
         Events {
             reader: self,
@@ -614,6 +628,12 @@ impl EventReader {
     /// more events are available.
     /// If the device is *not* in non-blocking mode, the iterator will block until more events
     /// arrive.
+    ///
+    /// **Note**: Retrieving an event individually (for example, via [`EventReader::events`]) will
+    /// remove that event from the [`Report`] it belongs to if that report is later fetched with
+    /// [`EventReader::reports`].
+    /// It is best to stick to either per-event or per-report processing in your program to avoid
+    /// this.
     pub fn reports(&mut self) -> Reports<'_> {
         Reports(self)
     }
@@ -629,6 +649,8 @@ impl EventReader {
     /// Fetches the next batch of events from the device.
     ///
     /// The returned [`Report`] can be iterated over to yield the events contained in the batch.
+    // FIXME(breaking): make this private
+    #[deprecated(note = "use the `EventReader::reports` iterator instead")]
     pub fn next_report(&mut self) -> io::Result<Report<'_>> {
         self.skip();
 
@@ -866,6 +888,7 @@ pub struct Reports<'a>(&'a mut EventReader);
 impl<'a> Iterator for Reports<'a> {
     type Item = io::Result<Report<'a>>;
 
+    #[allow(deprecated)]
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next_report() {
             Ok(report) => Some(Ok(report.to_owned())),
