@@ -2,13 +2,20 @@
 
 use std::{
     collections::VecDeque,
-    fmt, io,
+    fmt,
+    fs::File,
+    io::{self, Read},
+    iter,
+    marker::PhantomData,
+    mem,
+    ops::RangeInclusive,
+    slice,
+    sync::Arc,
     time::{Instant, SystemTime},
 };
 
 use crate::{
     Evdev, Slot,
-    batch::BatchReader,
     bits::{BitSet, BitValue},
     drop::on_drop,
     event::{
@@ -221,6 +228,10 @@ impl DeviceState {
 
     /// Fetches the current device state, and injects synthetic events to compensate for any
     /// difference to the expected state.
+    ///
+    /// # Postconditions
+    ///
+    /// - `queue` will either be empty, or its last element will be a SYN_REPORT.
     fn resync(&mut self, evdev: &Evdev, queue: &mut VecDeque<InputEvent>) -> io::Result<()> {
         fn sync_bitset<V: BitValue>(
             dest: &mut BitSet<V>,
@@ -237,7 +248,21 @@ impl DeviceState {
         let now = Instant::now();
         let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
 
-        let len_before = queue.len();
+        // Clear out all events, and drain the kernel buffer too, like libevdev does.
+        queue.clear();
+        let mut reads = 0;
+
+        const READ_LIMIT: usize = 16;
+        const READ_SIZE: usize = 128;
+        while evdev.is_readable()? && reads < READ_LIMIT {
+            let mut out = [InputEvent::zeroed(); READ_SIZE];
+            read_raw(&evdev.file, &mut out)?;
+            reads += 1;
+        }
+        if reads >= READ_LIMIT {
+            log::warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
+        }
+
         let mut emit = |ev: InputEvent| {
             queue.push_back(ev.with_time(self.last_event));
         };
@@ -290,10 +315,10 @@ impl DeviceState {
         // emit an empty report consisting of just a SYN_REPORT event after a SYN_DROPPED.
         // It is useful after the `EventReader` is just constructed though, since the event would
         // otherwise be missing.
-        if queue.len() != len_before {
+        if !queue.is_empty() {
             log::debug!(
                 "resync injected {} events -> adding SYN_REPORT",
-                queue.len() - len_before
+                queue.len()
             );
             assert_ne!(queue.back().unwrap().event_type(), EventType::SYN);
             queue.push_back(SynEvent::new(Syn::REPORT).with_time(self.last_event));
@@ -378,14 +403,21 @@ impl DeviceState {
 #[derive(Debug)]
 pub struct EventReader {
     evdev: Evdev,
-    batch: BatchReader,
     state: DeviceState,
 
-    /// Queues outgoing input events.
+    /// Queue of incoming events.
     ///
-    /// Events received from the raw [`Evdev`] event stream are only committed once they are
-    /// followed up by a `SYN_REPORT` event. Only then do we write an event batch to this queue.
-    queue: VecDeque<InputEvent>,
+    /// Events are `read(2)` from the device into this queue, and are processed (updating the state
+    /// of the `EventReader`) when they are pulled out of the queue by the `events` or `reports`
+    /// iterators.
+    ///
+    /// Wrapped in an `Arc` to allow multiple `Report`s to coexist, if the caller insists on doing
+    /// that (a lending iterator would be a better interface, but Rust doesn't have that yet).
+    /// When reading more events into the queue, we use `make_mut` to obtain a `&mut`.
+    incoming: Arc<VecDeque<InputEvent>>,
+    /// Number of events to discard from the front of the queue before yielding the next report or
+    /// event.
+    skip: usize,
     /// Whether we need to discard (instead of queuing) all events until the next `SYN_REPORT`.
     ///
     /// Set after we get a `SYN_DROPPED` to clear out incomplete reports.
@@ -397,15 +429,16 @@ impl EventReader {
         let abs_axes = evdev.supported_abs_axes()?;
 
         let mut this = Self {
-            batch: BatchReader::new(),
             state: DeviceState::new(abs_axes),
-            queue: VecDeque::new(),
+            incoming: Arc::default(),
+            skip: 0,
             evdev,
             discard_events: false,
         };
 
         // resync to inject events that represent the current device state.
-        this.state.resync(&this.evdev, &mut this.queue)?;
+        this.state
+            .resync(&this.evdev, Arc::make_mut(&mut this.incoming))?;
 
         Ok(this)
     }
@@ -531,34 +564,123 @@ impl EventReader {
     /// If the device is *not* in non-blocking mode, the iterator will block until more events
     /// arrive.
     pub fn events(&mut self) -> Events<'_> {
-        Events(self)
+        Events {
+            reader: self,
+            remaining: 0,
+        }
+    }
+
+    /// Returns an iterator over incoming device reports.
+    ///
+    /// [`Report`]s are groups of [`InputEvent`]s that belong together.
+    ///
+    /// If the underlying device is in non-blocking mode, the iterator will return [`None`] when no
+    /// more events are available.
+    /// If the device is *not* in non-blocking mode, the iterator will block until more events
+    /// arrive.
+    pub fn reports(&mut self) -> Reports<'_> {
+        Reports(self)
+    }
+
+    fn skip(&mut self) {
+        if self.skip == 0 {
+            return;
+        }
+        Arc::make_mut(&mut self.incoming).drain(..self.skip);
+        self.skip = 0;
     }
 
     /// Fetches the next batch of events from the device.
     ///
     /// The returned [`Report`] can be iterated over to yield the events contained in the batch.
     pub fn next_report(&mut self) -> io::Result<Report<'_>> {
-        if self.queue.is_empty() {
-            self.refill()?;
-        }
+        self.skip();
+
+        let end = match self.incoming.iter().position(report_or_dropped) {
+            Some(i) => i,
+            None => self.refill()?,
+        };
+
+        self.incoming
+            .range(..=end)
+            .for_each(|ev| self.state.update_state(*ev));
+        self.skip = end + 1;
 
         Ok(Report {
-            reader: self,
-            done: false,
+            queue: self.incoming.clone(),
+            range: 0..=end,
+            _p: PhantomData,
         })
     }
 
-    fn refill(&mut self) -> io::Result<()> {
-        loop {
-            let batch = match self.batch.read(&self.evdev.file)? {
-                None => continue, // read some events, but no SYN_x event
-                Some(batch) => batch,
-            };
-            log::trace!("read batch: {:?}", batch.as_slice());
+    fn next_report_len(&mut self) -> io::Result<usize> {
+        self.skip();
 
-            // We've been handed a `batch` of events, the last of which is guaranteed to either be
-            // a SYN_REPORT or a SYN_DROPPED.
-            let ev = batch.as_slice().last().expect("got empty batch");
+        let idx = match self.incoming.iter().position(report_or_dropped) {
+            Some(i) => Ok(i),
+            None => self.refill(),
+        };
+        idx.map(|i| i + 1)
+    }
+
+    fn next_event(&mut self) -> InputEvent {
+        self.skip();
+        let ev = Arc::make_mut(&mut self.incoming)
+            .pop_front()
+            .expect("`next_event` called with no events in queue");
+        self.state.update_state(ev);
+        ev
+    }
+
+    /// Reads events until at least one SYN_REPORT or SYN_DROPPED is found, or reading fails.
+    ///
+    /// Returns the index of the SYN_x event in the queue.
+    fn refill(&mut self) -> io::Result<usize> {
+        /// 21 * 24 bytes = 504 bytes, so that we fill a 512 B allocation size class with little waste
+        /// (assuming one exists, etc.).
+        const BATCH_READ_SIZE: usize = 21;
+        const PLACEHOLDER: InputEvent = InputEvent::new(EventType::from_raw(0xffff), 0xffff, -1);
+
+        // This `make_mut` will not cause any clones unless `Report`s are kept alive between calls
+        // (for example, because the caller is `collect()`ing the `Reports` iterator).
+        // In the latter case this will make each `Report` hold on to a 512 byte allocation (or more,
+        // if reports contain more events).
+        let incoming = Arc::make_mut(&mut self.incoming);
+
+        loop {
+            // `VecDeque` has no `set_len` or `as_mut_ptr`, so we have to add dummy elements to read
+            // into, and then remove the ones that weren't overwritten.
+            let len_before = incoming.len();
+            incoming.reserve(BATCH_READ_SIZE);
+            incoming.extend(iter::repeat(PLACEHOLDER).take(BATCH_READ_SIZE));
+
+            // If the queue wraps around, we might have two discontinuous destination buffers
+            // available. We only write to the first and let the outer loop handle the rest.
+            let (first, second) = incoming.as_mut_slices();
+            let dest = if first.len() <= len_before {
+                &mut second[len_before - first.len()..]
+            } else {
+                &mut first[len_before..]
+            };
+            let res = read_raw(&self.evdev.file, dest);
+
+            // Truncate the queue so it only contains events we actually read.
+            let count = *res.as_ref().ok().unwrap_or(&0);
+            incoming.truncate(len_before + count);
+
+            debug_assert!(
+                !incoming.contains(&PLACEHOLDER),
+                "should not contain placeholders: {:?}",
+                incoming
+            );
+
+            res?;
+
+            let end = match incoming.range(len_before..).position(report_or_dropped) {
+                Some(i) => len_before + i,
+                None => continue, // no SYN_x event, try to read more
+            };
+            let ev = incoming[end];
             let syn = match ev.kind() {
                 Some(EventKind::Syn(ev)) => ev,
                 _ => unreachable!("got invalid event at the end of a batch: {ev:?}"),
@@ -572,15 +694,11 @@ impl EventReader {
                     if self.discard_events {
                         // We have to drop this batch.
                         self.discard_events = false;
+                        drop(incoming.drain(..=end));
                         continue;
                     } else {
-                        // We can commit this batch.
-                        for ev in batch.as_slice() {
-                            self.state.update_state(*ev);
-                        }
-                        self.queue.extend(batch);
-
-                        return Ok(());
+                        // We can return this batch.
+                        return Ok(end);
                     }
                 }
                 Syn::DROPPED => {
@@ -590,12 +708,14 @@ impl EventReader {
                     // - Drop all *future* events until we get a `SYN_REPORT`.
                     log::debug!("SYN_DROPPED: events were lost! resyncing");
                     self.discard_events = true;
+                    incoming.clear();
 
                     // Fetch device state and synthesize events.
-                    self.state.resync(&self.evdev, &mut self.queue)?;
+                    self.state.resync(&self.evdev, incoming)?;
 
-                    if !self.queue.is_empty() {
-                        return Ok(());
+                    if !incoming.is_empty() {
+                        // If `resync` generates any events, the last one is guaranteed to be a SYN_REPORT.
+                        return Ok(incoming.len() - 1);
                     }
 
                     // We will return to normal operation once the synthetic events have been
@@ -605,23 +725,21 @@ impl EventReader {
             }
         }
     }
+}
 
-    fn next_event(&mut self) -> Option<io::Result<InputEvent>> {
-        if self.queue.is_empty() {
-            // No more queued events to deliver. We've been asked to block until the next one is
-            // available, so do that.
-            // Incoming raw events get batch-read into `self.queue`
-            match self.refill() {
-                Ok(()) => {}
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
-                Err(e) => return Some(Err(e)),
-            }
-        }
+fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
+    let bptr = dest.as_mut_ptr().cast::<u8>();
+    let byte_buf =
+        unsafe { slice::from_raw_parts_mut(bptr, mem::size_of::<InputEvent>() * dest.len()) };
+    let bytes = file.read(byte_buf)?;
+    debug_assert_eq!(bytes % mem::size_of::<InputEvent>(), 0);
+    Ok(bytes / mem::size_of::<InputEvent>())
+}
 
-        return Some(Ok(self
-            .queue
-            .pop_front()
-            .expect("queue should not be empty after refill")));
+fn report_or_dropped(ev: &InputEvent) -> bool {
+    match ev.kind() {
+        Some(EventKind::Syn(ev)) => ev.syn() == Syn::REPORT || ev.syn() == Syn::DROPPED,
+        _ => false,
     }
 }
 
@@ -639,7 +757,10 @@ impl IntoIterator for EventReader {
     type IntoIter = IntoEvents;
 
     fn into_iter(self) -> Self::IntoIter {
-        IntoEvents(self)
+        IntoEvents {
+            reader: self,
+            remaining: 0,
+        }
     }
 }
 
@@ -647,24 +768,39 @@ impl IntoIterator for EventReader {
 ///
 /// Returned by [`EventReader::events`].
 #[derive(Debug)]
-pub struct Events<'a>(&'a mut EventReader);
+pub struct Events<'a> {
+    reader: &'a mut EventReader,
+    remaining: usize,
+}
 
 impl Iterator for Events<'_> {
     type Item = io::Result<InputEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next_event()
+        if self.remaining == 0 {
+            self.remaining = match self.reader.next_report_len() {
+                Ok(n) => n,
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
+                Err(e) => return Some(Err(e)),
+            };
+        }
+
+        self.remaining -= 1;
+        Some(Ok(self.reader.next_event()))
     }
 }
 
 /// An owning [`Iterator`] over the events produced by an [`EventReader`].
 #[derive(Debug)]
-pub struct IntoEvents(EventReader);
+pub struct IntoEvents {
+    reader: EventReader,
+    remaining: usize,
+}
 
 impl IntoEvents {
     /// Consumes this [`IntoEvents`] iterator and returns back the original [`EventReader`].
     pub fn into_reader(self) -> EventReader {
-        self.0
+        self.reader
     }
 }
 
@@ -672,31 +808,64 @@ impl Iterator for IntoEvents {
     type Item = io::Result<InputEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next_event()
+        if self.remaining == 0 {
+            self.remaining = match self.reader.next_report_len() {
+                Ok(n) => n,
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
+                Err(e) => return Some(Err(e)),
+            };
+        }
+
+        self.remaining -= 1;
+        Some(Ok(self.reader.next_event()))
+    }
+}
+
+/// Iterator over device [`Report`]s.
+///
+/// Returned by [`EventReader::reports`].
+#[derive(Debug)]
+pub struct Reports<'a>(&'a mut EventReader);
+
+impl<'a> Iterator for Reports<'a> {
+    type Item = io::Result<Report<'a>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.next_report() {
+            Ok(report) => Some(Ok(report.to_owned())),
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
+            Err(e) => Some(Err(e)),
+        }
     }
 }
 
 /// An iterator over a batch of [`InputEvent`]s, terminated with a `SYN_REPORT` event.
 ///
-/// Returned by [`EventReader::next_report`].
+/// Returned by [`EventReader::next_report`] and the [`Reports`] iterator.
 #[derive(Debug)]
 pub struct Report<'a> {
-    reader: &'a mut EventReader,
-    done: bool,
+    queue: Arc<VecDeque<InputEvent>>,
+    range: RangeInclusive<usize>,
+    _p: PhantomData<&'a InputEvent>,
+}
+
+impl<'a> Report<'a> {
+    fn to_owned(self) -> Report<'static> {
+        Report {
+            queue: self.queue,
+            range: self.range,
+            _p: PhantomData,
+        }
+    }
 }
 
 impl<'a> Iterator for Report<'a> {
     type Item = InputEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
+        let Some(i) = self.range.next() else {
             return None;
-        }
-
-        let event = self.reader.queue.pop_front().unwrap();
-        if event.event_type() == EventType::SYN {
-            self.done = true;
-        }
-        Some(event)
+        };
+        Some(self.queue[i])
     }
 }

@@ -1,13 +1,11 @@
 use std::{
     fmt,
     fs::File,
-    io::{self, Read, Write},
-    mem::{self, MaybeUninit},
-    slice,
-    vec::Drain,
+    io::{self, Write},
+    mem, slice,
 };
 
-use crate::event::{EventKind, InputEvent, Syn};
+use crate::event::InputEvent;
 
 /// Number of events to buffer before writing.
 ///
@@ -21,10 +19,6 @@ use crate::event::{EventKind, InputEvent, Syn};
 /// - Laptop Touchpad: ~10 when using 2 fingers (3 for each MT slot position update + 2 ABS_{X,Y}
 ///   + 1 timestamp + 1 SYN_REPORT)
 const BATCH_WRITE_SIZE: usize = 12;
-
-/// 21 * 24 bytes = 504 bytes, so that we fill a 512 B allocation size class with little waste
-/// (assuming one exists, etc.).
-const BATCH_READ_SIZE: usize = 21;
 
 pub(crate) struct BatchWriter {
     buffer: [InputEvent; BATCH_WRITE_SIZE],
@@ -100,70 +94,6 @@ fn write_raw(mut file: &File, events: &[InputEvent]) -> io::Result<()> {
         file.write_all(bytes)?;
         Ok(())
     }
-}
-
-#[derive(Debug)]
-pub(crate) struct BatchReader {
-    /// We don't know beforehand how many events until the next SYN_REPORT, so we have to buffer
-    /// them in this `Vec`.
-    buf: Vec<InputEvent>,
-}
-
-pub(crate) type BatchDrain<'a> = Drain<'a, InputEvent>;
-
-impl BatchReader {
-    pub(crate) fn new() -> Self {
-        Self { buf: Vec::new() }
-    }
-
-    /// Returns `Ok(None)` when events were read, but there is no SYN event to finish a batch.
-    /// Return `Ok(Some(drain))` when a batch has been completed by a SYN event. The `drain`
-    /// iterator yields all events up to and including the SYN event.
-    ///
-    /// Note that this does not distinguish between the different SYN events – SYN_REPORT and
-    /// SYN_DROPPED will both cause all preceding events to be yielded to the caller.
-    pub(crate) fn read(&mut self, file: &File) -> io::Result<Option<BatchDrain<'_>>> {
-        fn report_or_dropped(ev: &InputEvent) -> bool {
-            match ev.kind() {
-                Some(EventKind::Syn(ev)) => ev.syn() == Syn::REPORT || ev.syn() == Syn::DROPPED,
-                _ => false,
-            }
-        }
-
-        if let Some(i) = self.buf.iter().position(report_or_dropped) {
-            return Ok(Some(self.buf.drain(..=i)));
-        }
-
-        self.buf.reserve(BATCH_READ_SIZE);
-
-        // note that `dest` may be bigger than `BATCH_READ_SIZE`
-        let len = self.buf.len();
-        let dest = self.buf.spare_capacity_mut();
-        let n = read_raw(file, dest)?;
-        assert_ne!(n, 0);
-        unsafe {
-            self.buf.set_len(len + n);
-        }
-
-        // Find the index of the next SYN_REPORT or SYN_DROPPED event.
-        // Unknown SYN_* events are kept in the buffer until committed by a SYN_REPORT or discarded
-        // by a SYN_DROPPED.
-        let new = &self.buf[len..];
-        let pos = new.iter().position(report_or_dropped);
-        // Note that we might have read more than a single report. In that case, we return the first
-        // one and the next call will return the next report in the buffer.
-
-        Ok(pos.map(|i| self.buf.drain(..=i + len)))
-    }
-}
-
-fn read_raw(mut file: &File, dest: &mut [MaybeUninit<InputEvent>]) -> io::Result<usize> {
-    let bptr = dest.as_mut_ptr().cast::<u8>();
-    let byte_buf =
-        unsafe { slice::from_raw_parts_mut(bptr, mem::size_of::<InputEvent>() * dest.len()) };
-    let bytes = file.read(byte_buf)?;
-    debug_assert_eq!(bytes % mem::size_of::<InputEvent>(), 0);
-    Ok(bytes / mem::size_of::<InputEvent>())
 }
 
 #[cfg(test)]

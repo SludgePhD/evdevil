@@ -494,3 +494,58 @@ fn test_rel_mask() -> io::Result<()> {
     tester.evdev_mut().set_rel_mask(&rel_mask)?;
     Ok(())
 }
+
+#[test]
+fn reader_reports_clear() -> io::Result<()> {
+    let mut tester = Tester::get();
+
+    tester.evdev().set_nonblocking(true)?;
+    tester.with_reader(|uinput, reader| {
+        uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+        let report = reader.next_report()?.collect::<Vec<InputEvent>>();
+        check_events(
+            &report,
+            &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
+        );
+
+        // Fetching a report should remove its events from the queue.
+        assert_eq!(
+            reader.next_report().unwrap_err().kind(),
+            io::ErrorKind::WouldBlock
+        );
+
+        // Using the events iterator should also not yield the old events anymore.
+        let ev = reader.events().next();
+        assert!(ev.is_none(), "{ev:?}");
+
+        Ok(())
+    })?;
+    tester.evdev().set_nonblocking(false)?;
+    Ok(())
+}
+
+/// Tests that multiple `Report`s can coexist and contain the right data.
+#[test]
+fn reader_reports_collect() -> io::Result<()> {
+    let mut tester = Tester::get();
+
+    tester.evdev().set_nonblocking(true)?;
+    tester.with_reader(|uinput, reader| {
+        uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+        uinput.write(&[RelEvent::new(Rel::DIAL, 2).into()])?;
+        let mut reports = reader.reports().collect::<io::Result<Vec<_>>>()?;
+        assert_eq!(reports.len(), 2);
+        check_events(
+            &reports[0].by_ref().collect::<Vec<_>>(),
+            &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
+        );
+        check_events(
+            &reports[1].by_ref().collect::<Vec<_>>(),
+            &[RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
+        );
+
+        Ok(())
+    })?;
+    tester.evdev().set_nonblocking(false)?;
+    Ok(())
+}
