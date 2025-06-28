@@ -410,6 +410,234 @@ impl DeviceState {
     }
 }
 
+/// Sans-I/O portion of the [`EventReader`] implementation.
+#[derive(Debug)]
+struct Impl {
+    state: DeviceState,
+    /// Queue of incoming events.
+    ///
+    /// Events are `read(2)` from the device into this queue, and are processed (updating the state
+    /// of the `EventReader`) when they are pulled out of the queue by the `events` or `reports`
+    /// iterators.
+    ///
+    /// Wrapped in an `Arc` to allow multiple `Report`s to coexist, if the caller insists on doing
+    /// that (a lending iterator would be a better interface, but Rust doesn't have that yet).
+    /// When reading more events into the queue, we use `make_mut` to obtain a `&mut`.
+    incoming: Arc<VecDeque<InputEvent>>,
+    /// Number of events to discard from the front of the queue before yielding the next report or
+    /// event.
+    skip: usize,
+    /// Whether we need to discard (instead of queuing) all events until the next `SYN_REPORT`.
+    ///
+    /// Set after we get a `SYN_DROPPED` to clear out incomplete reports.
+    discard_events: bool,
+}
+
+impl Impl {
+    fn new(abs_axes: BitSet<Abs>) -> Self {
+        Self {
+            state: DeviceState::new(abs_axes),
+            incoming: Arc::default(),
+            skip: 0,
+            discard_events: false,
+        }
+    }
+
+    fn abs_state(&self, abs: Abs) -> i32 {
+        self.state.abs[abs.raw() as usize]
+    }
+
+    fn valid_slots(&self) -> impl Iterator<Item = Slot> + '_ {
+        self.state.mt_storage.valid_slots()
+    }
+
+    fn slot_state(&self, slot: impl TryInto<Slot>, code: Abs) -> Option<i32> {
+        let slot: Slot = slot.try_into().ok()?;
+        assert!(
+            code.raw() > Abs::MT_SLOT.raw(),
+            "`slot_state` requires an `ABS_MT_*` value above `ABS_MT_SLOT`"
+        );
+        self.state
+            .mt_storage
+            .group_for_code(code)?
+            .get(slot.raw() as usize)
+            .copied()
+    }
+    fn current_slot(&self) -> Slot {
+        Slot::from_raw(self.state.mt_storage.active_slot as i32)
+    }
+    fn skip(&mut self) {
+        if self.skip == 0 {
+            return;
+        }
+        Arc::make_mut(&mut self.incoming).drain(..self.skip);
+        self.skip = 0;
+    }
+    fn next_report(&mut self, iface: &mut impl Interface) -> io::Result<Report<'_>> {
+        self.skip();
+
+        let end = match self.incoming.iter().position(report_or_dropped) {
+            Some(i) => i,
+            None => self.refill(iface)?,
+        };
+
+        self.incoming
+            .range(..=end)
+            .for_each(|ev| self.state.update_state(*ev));
+        self.skip = end + 1;
+
+        Ok(Report {
+            queue: self.incoming.clone(),
+            range: 0..=end,
+            _p: PhantomData,
+        })
+    }
+    fn next_report_len(&mut self, iface: &mut impl Interface) -> io::Result<usize> {
+        self.skip();
+
+        let idx = match self.incoming.iter().position(report_or_dropped) {
+            Some(i) => Ok(i),
+            None => self.refill(iface),
+        };
+        idx.map(|i| i + 1)
+    }
+    fn next_event(&mut self) -> InputEvent {
+        self.skip();
+        let ev = Arc::make_mut(&mut self.incoming)
+            .pop_front()
+            .expect("`next_event` called with no events in queue");
+        self.state.update_state(ev);
+        ev
+    }
+
+    /// Reads events until at least one SYN_REPORT or SYN_DROPPED is found, or reading fails.
+    ///
+    /// Returns the index of the SYN_x event in the queue.
+    fn refill(&mut self, i: &mut impl Interface) -> io::Result<usize> {
+        /// 21 * 24 bytes = 504 bytes, so that we fill a 512 B allocation size class with little waste
+        /// (assuming one exists, etc.).
+        const BATCH_READ_SIZE: usize = 21;
+        const PLACEHOLDER: InputEvent = InputEvent::new(EventType::from_raw(0xffff), 0xffff, -1);
+
+        // This `make_mut` will not cause any clones unless `Report`s are kept alive between calls
+        // (for example, because the caller is `collect()`ing the `Reports` iterator).
+        // In the latter case this will make each `Report` hold on to a 512 byte allocation (or more,
+        // if reports contain more events).
+        let incoming = Arc::make_mut(&mut self.incoming);
+
+        loop {
+            // `VecDeque` has no `set_len` or `as_mut_ptr`, so we have to add dummy elements to read
+            // into, and then remove the ones that weren't overwritten.
+            let len_before = incoming.len();
+            incoming.reserve(BATCH_READ_SIZE);
+            incoming.extend(iter::repeat(PLACEHOLDER).take(BATCH_READ_SIZE));
+
+            // If the queue wraps around, we might have two discontinuous destination buffers
+            // available. We only write to the first and let the outer loop handle the rest.
+            let (first, second) = incoming.as_mut_slices();
+            let dest = if first.len() <= len_before {
+                &mut second[len_before - first.len()..]
+            } else {
+                &mut first[len_before..]
+            };
+            let res = i.read(dest);
+
+            // Truncate the queue so it only contains events we actually read.
+            let count = *res.as_ref().ok().unwrap_or(&0);
+            incoming.truncate(len_before + count);
+
+            debug_assert!(
+                !incoming.contains(&PLACEHOLDER),
+                "should not contain placeholders: {:?}",
+                incoming
+            );
+
+            res?;
+
+            let end = match incoming.range(len_before..).position(report_or_dropped) {
+                Some(i) => len_before + i,
+                None => continue, // no SYN_x event, try to read more
+            };
+            let ev = incoming[end];
+            let syn = match ev.kind() {
+                Some(EventKind::Syn(ev)) => ev,
+                _ => unreachable!("got invalid event at the end of a batch: {ev:?}"),
+            };
+
+            // Save the timestamp of the last event in the batch.
+            self.state.last_event = ev.time();
+
+            match syn.syn() {
+                Syn::REPORT => {
+                    if self.discard_events {
+                        // We have to drop this batch.
+                        self.discard_events = false;
+                        drop(incoming.drain(..=end));
+                        continue;
+                    } else {
+                        // We can return this batch.
+                        return Ok(end);
+                    }
+                }
+                Syn::DROPPED => {
+                    // At least one event has been lost, so we have to resynchronize.
+                    // According to the `libevdev` documentation, we we have to:
+                    // - Drop all uncommitted events (events that weren't followed up by a `SYN_REPORT`).
+                    // - Drop all *future* events until we get a `SYN_REPORT`.
+                    log::debug!("SYN_DROPPED: events were lost! resyncing");
+                    self.discard_events = true;
+                    incoming.clear();
+
+                    // Fetch device state and synthesize events.
+                    i.resync(&mut self.state, incoming)?;
+
+                    if !incoming.is_empty() {
+                        // If `resync` generates any events, the last one is guaranteed to be a SYN_REPORT.
+                        return Ok(incoming.len() - 1);
+                    }
+
+                    // We will return to normal operation once the synthetic events have been
+                    // cleared out and all events until the next `SYN_REPORT` have been discarded.
+                }
+                _ => unreachable!("unexpected SYN event at the end of a batch: {syn:?}"),
+            }
+        }
+    }
+}
+
+trait Interface {
+    fn read(&mut self, dest: &mut [InputEvent]) -> io::Result<usize>;
+    fn resync(&self, state: &mut DeviceState, queue: &mut VecDeque<InputEvent>) -> io::Result<()>;
+}
+
+impl Interface for Evdev {
+    fn read(&mut self, dest: &mut [InputEvent]) -> io::Result<usize> {
+        read_raw(&self.file, dest)
+    }
+
+    fn resync(&self, state: &mut DeviceState, queue: &mut VecDeque<InputEvent>) -> io::Result<()> {
+        let now = Instant::now();
+        let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
+
+        // Clear out all events, and drain the kernel buffer too, like libevdev does.
+        let mut reads = 0;
+
+        const READ_LIMIT: usize = 16;
+        const READ_SIZE: usize = 128;
+        while self.is_readable()? && reads < READ_LIMIT {
+            let mut out = [InputEvent::zeroed(); READ_SIZE];
+            read_raw(&self.file, &mut out)?;
+            reads += 1;
+        }
+        if reads >= READ_LIMIT {
+            log::warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
+        }
+
+        state.resync_from(&DeviceState::current(self)?, queue);
+        Ok(())
+    }
+}
+
 /// Stores a userspace view of a device, and reads events emitted by it.
 ///
 /// Created by [`Evdev::into_reader`].
@@ -434,25 +662,7 @@ impl DeviceState {
 #[derive(Debug)]
 pub struct EventReader {
     evdev: Evdev,
-    state: DeviceState,
-
-    /// Queue of incoming events.
-    ///
-    /// Events are `read(2)` from the device into this queue, and are processed (updating the state
-    /// of the `EventReader`) when they are pulled out of the queue by the `events` or `reports`
-    /// iterators.
-    ///
-    /// Wrapped in an `Arc` to allow multiple `Report`s to coexist, if the caller insists on doing
-    /// that (a lending iterator would be a better interface, but Rust doesn't have that yet).
-    /// When reading more events into the queue, we use `make_mut` to obtain a `&mut`.
-    incoming: Arc<VecDeque<InputEvent>>,
-    /// Number of events to discard from the front of the queue before yielding the next report or
-    /// event.
-    skip: usize,
-    /// Whether we need to discard (instead of queuing) all events until the next `SYN_REPORT`.
-    ///
-    /// Set after we get a `SYN_DROPPED` to clear out incomplete reports.
-    discard_events: bool,
+    imp: Impl,
 }
 
 impl EventReader {
@@ -460,16 +670,14 @@ impl EventReader {
         let abs_axes = evdev.supported_abs_axes()?;
 
         let mut this = Self {
-            state: DeviceState::new(abs_axes),
-            incoming: Arc::default(),
-            skip: 0,
             evdev,
-            discard_events: false,
+            imp: Impl::new(abs_axes),
         };
 
         // resync to inject events that represent the current device state.
-        this.state
-            .resync(&this.evdev, Arc::make_mut(&mut this.incoming))?;
+        this.imp
+            .state
+            .resync(&this.evdev, Arc::make_mut(&mut this.imp.incoming))?;
 
         Ok(this)
     }
@@ -530,22 +738,22 @@ impl EventReader {
 
     /// Returns a [`BitSet`] of all [`Key`]s that are currently pressed.
     pub fn key_state(&self) -> &BitSet<Key> {
-        &self.state.keys
+        &self.imp.state.keys
     }
 
     /// Returns a [`BitSet`] of all [`Led`]s that are currently on.
     pub fn led_state(&self) -> &BitSet<Led> {
-        &self.state.leds
+        &self.imp.state.leds
     }
 
     /// Returns a [`BitSet`] of all [`Sound`]s that have been requested to play.
     pub fn sound_state(&self) -> &BitSet<Sound> {
-        &self.state.sounds
+        &self.imp.state.sounds
     }
 
     /// Returns a [`BitSet`] of all [`Switch`]es that are currently active or closed.
     pub fn switch_state(&self) -> &BitSet<Switch> {
-        &self.state.switches
+        &self.imp.state.switches
     }
 
     /// Returns the current value of an absolute axis.
@@ -556,7 +764,7 @@ impl EventReader {
     /// Call [`EventReader::update`], or drain incoming events using the iterator interface in order
     /// to update the multitouch slot state.
     pub fn abs_state(&self, abs: Abs) -> i32 {
-        self.state.abs[abs.raw() as usize]
+        self.imp.abs_state(abs)
     }
 
     /// Returns an iterator that yields all [`Slot`]s that have valid data in them.
@@ -566,7 +774,7 @@ impl EventReader {
     /// Call [`EventReader::update`], or drain incoming events using the iterator interface in order
     /// to update the multitouch slot state.
     pub fn valid_slots(&self) -> impl Iterator<Item = Slot> + '_ {
-        self.state.mt_storage.valid_slots()
+        self.imp.valid_slots()
     }
 
     /// Returns an [`Abs`] axis value for a multitouch slot.
@@ -581,23 +789,14 @@ impl EventReader {
     /// If `slot` isn't valid (yielded by [`EventReader::valid_slots`]), invalid stale data may be
     /// returned.
     pub fn slot_state(&self, slot: impl TryInto<Slot>, code: Abs) -> Option<i32> {
-        let slot: Slot = slot.try_into().ok()?;
-        assert!(
-            code.raw() > Abs::MT_SLOT.raw(),
-            "`slot_state` requires an `ABS_MT_*` value above `ABS_MT_SLOT`"
-        );
-        self.state
-            .mt_storage
-            .group_for_code(code)?
-            .get(slot.raw() as usize)
-            .copied()
+        self.imp.slot_state(slot, code)
     }
 
     /// Returns the currently selected multitouch slot.
     ///
     /// Events with `ABS_MT_*` code affect *this* slot, but not other slots.
     pub fn current_slot(&self) -> Slot {
-        Slot::from_raw(self.state.mt_storage.active_slot as i32)
+        self.imp.current_slot()
     }
 
     /// Returns an iterator over incoming events.
@@ -638,150 +837,21 @@ impl EventReader {
         Reports(self)
     }
 
-    fn skip(&mut self) {
-        if self.skip == 0 {
-            return;
-        }
-        Arc::make_mut(&mut self.incoming).drain(..self.skip);
-        self.skip = 0;
-    }
-
     /// Fetches the next batch of events from the device.
     ///
     /// The returned [`Report`] can be iterated over to yield the events contained in the batch.
     // FIXME(breaking): make this private
     #[deprecated(note = "use the `EventReader::reports` iterator instead")]
     pub fn next_report(&mut self) -> io::Result<Report<'_>> {
-        self.skip();
-
-        let end = match self.incoming.iter().position(report_or_dropped) {
-            Some(i) => i,
-            None => self.refill()?,
-        };
-
-        self.incoming
-            .range(..=end)
-            .for_each(|ev| self.state.update_state(*ev));
-        self.skip = end + 1;
-
-        Ok(Report {
-            queue: self.incoming.clone(),
-            range: 0..=end,
-            _p: PhantomData,
-        })
+        self.imp.next_report(&mut self.evdev)
     }
 
     fn next_report_len(&mut self) -> io::Result<usize> {
-        self.skip();
-
-        let idx = match self.incoming.iter().position(report_or_dropped) {
-            Some(i) => Ok(i),
-            None => self.refill(),
-        };
-        idx.map(|i| i + 1)
+        self.imp.next_report_len(&mut self.evdev)
     }
 
     fn next_event(&mut self) -> InputEvent {
-        self.skip();
-        let ev = Arc::make_mut(&mut self.incoming)
-            .pop_front()
-            .expect("`next_event` called with no events in queue");
-        self.state.update_state(ev);
-        ev
-    }
-
-    /// Reads events until at least one SYN_REPORT or SYN_DROPPED is found, or reading fails.
-    ///
-    /// Returns the index of the SYN_x event in the queue.
-    fn refill(&mut self) -> io::Result<usize> {
-        /// 21 * 24 bytes = 504 bytes, so that we fill a 512 B allocation size class with little waste
-        /// (assuming one exists, etc.).
-        const BATCH_READ_SIZE: usize = 21;
-        const PLACEHOLDER: InputEvent = InputEvent::new(EventType::from_raw(0xffff), 0xffff, -1);
-
-        // This `make_mut` will not cause any clones unless `Report`s are kept alive between calls
-        // (for example, because the caller is `collect()`ing the `Reports` iterator).
-        // In the latter case this will make each `Report` hold on to a 512 byte allocation (or more,
-        // if reports contain more events).
-        let incoming = Arc::make_mut(&mut self.incoming);
-
-        loop {
-            // `VecDeque` has no `set_len` or `as_mut_ptr`, so we have to add dummy elements to read
-            // into, and then remove the ones that weren't overwritten.
-            let len_before = incoming.len();
-            incoming.reserve(BATCH_READ_SIZE);
-            incoming.extend(iter::repeat(PLACEHOLDER).take(BATCH_READ_SIZE));
-
-            // If the queue wraps around, we might have two discontinuous destination buffers
-            // available. We only write to the first and let the outer loop handle the rest.
-            let (first, second) = incoming.as_mut_slices();
-            let dest = if first.len() <= len_before {
-                &mut second[len_before - first.len()..]
-            } else {
-                &mut first[len_before..]
-            };
-            let res = read_raw(&self.evdev.file, dest);
-
-            // Truncate the queue so it only contains events we actually read.
-            let count = *res.as_ref().ok().unwrap_or(&0);
-            incoming.truncate(len_before + count);
-
-            debug_assert!(
-                !incoming.contains(&PLACEHOLDER),
-                "should not contain placeholders: {:?}",
-                incoming
-            );
-
-            res?;
-
-            let end = match incoming.range(len_before..).position(report_or_dropped) {
-                Some(i) => len_before + i,
-                None => continue, // no SYN_x event, try to read more
-            };
-            let ev = incoming[end];
-            let syn = match ev.kind() {
-                Some(EventKind::Syn(ev)) => ev,
-                _ => unreachable!("got invalid event at the end of a batch: {ev:?}"),
-            };
-
-            // Save the timestamp of the last event in the batch.
-            self.state.last_event = ev.time();
-
-            match syn.syn() {
-                Syn::REPORT => {
-                    if self.discard_events {
-                        // We have to drop this batch.
-                        self.discard_events = false;
-                        drop(incoming.drain(..=end));
-                        continue;
-                    } else {
-                        // We can return this batch.
-                        return Ok(end);
-                    }
-                }
-                Syn::DROPPED => {
-                    // At least one event has been lost, so we have to resynchronize.
-                    // According to the `libevdev` documentation, we we have to:
-                    // - Drop all uncommitted events (events that weren't followed up by a `SYN_REPORT`).
-                    // - Drop all *future* events until we get a `SYN_REPORT`.
-                    log::debug!("SYN_DROPPED: events were lost! resyncing");
-                    self.discard_events = true;
-                    incoming.clear();
-
-                    // Fetch device state and synthesize events.
-                    self.state.resync(&self.evdev, incoming)?;
-
-                    if !incoming.is_empty() {
-                        // If `resync` generates any events, the last one is guaranteed to be a SYN_REPORT.
-                        return Ok(incoming.len() - 1);
-                    }
-
-                    // We will return to normal operation once the synthetic events have been
-                    // cleared out and all events until the next `SYN_REPORT` have been discarded.
-                }
-                _ => unreachable!("unexpected SYN event at the end of a batch: {syn:?}"),
-            }
-        }
+        self.imp.next_event()
     }
 }
 
