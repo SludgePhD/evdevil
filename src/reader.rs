@@ -1,5 +1,8 @@
 //! A convenient API for robustly reading device events.
 
+#[cfg(test)]
+mod tests;
+
 use std::{
     collections::VecDeque,
     fmt,
@@ -25,7 +28,7 @@ use crate::{
     raw::input::EVIOCGMTSLOTS,
 };
 
-const MAX_MT_SLOTS: i32 = 60; // matches the limit libevdev documents
+const MAX_MT_SLOTS: i32 = 60;
 
 /// Storage for the current multitouch state.
 #[derive(Clone)]
@@ -474,21 +477,25 @@ impl Impl {
         self.skip = 0;
     }
     fn next_report(&mut self, iface: &mut impl Interface) -> io::Result<Report<'_>> {
-        self.skip();
-
-        let end = match self.incoming.iter().position(report_or_dropped) {
+        let end = match self
+            .incoming
+            .iter()
+            .skip(self.skip)
+            .position(report_or_dropped)
+        {
             Some(i) => i,
             None => self.refill(iface)?,
         };
 
         self.incoming
-            .range(..=end)
+            .range(self.skip..=self.skip + end)
             .for_each(|ev| self.state.update_state(*ev));
-        self.skip = end + 1;
+        let skip = self.skip;
+        self.skip += end + 1;
 
         Ok(Report {
             queue: self.incoming.clone(),
-            range: 0..=end,
+            range: skip..=skip + end,
             _p: PhantomData,
         })
     }
@@ -518,6 +525,8 @@ impl Impl {
         /// (assuming one exists, etc.).
         const BATCH_READ_SIZE: usize = 21;
         const PLACEHOLDER: InputEvent = InputEvent::new(EventType::from_raw(0xffff), 0xffff, -1);
+
+        self.skip();
 
         // This `make_mut` will not cause any clones unless `Report`s are kept alive between calls
         // (for example, because the caller is `collect()`ing the `Reports` iterator).
