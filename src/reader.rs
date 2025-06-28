@@ -5,7 +5,7 @@ use std::{
     fmt,
     fs::File,
     io::{self, Read},
-    iter,
+    iter::{self, zip},
     marker::PhantomData,
     mem,
     ops::RangeInclusive,
@@ -84,17 +84,23 @@ impl MtStorage {
         }
     }
 
-    fn resync(&mut self, evdev: &Evdev, abs_axes: &BitSet<Abs>) -> io::Result<()> {
+    fn current(evdev: &Evdev, abs_axes: &BitSet<Abs>) -> io::Result<Self> {
+        let mut this = Self {
+            data: Vec::new(),
+            slots: 0,
+            codes: 0,
+            active_slot: 0,
+        };
+
         if !abs_axes.contains(Abs::MT_SLOT) {
-            return Ok(());
+            return Ok(this);
         }
         if !abs_axes.contains(Abs::MT_TRACKING_ID) {
             log::warn!(
                 "device {} advertises support for `ABS_MT_SLOT` but not `ABS_MT_TRACKING_ID`; multitouch support will not work",
                 evdev.name().unwrap_or_else(|e| e.to_string()),
             );
-            *self = Self::empty();
-            return Ok(());
+            return Ok(this);
         }
 
         let mt_slot_info = evdev.abs_info(Abs::MT_SLOT)?;
@@ -110,11 +116,10 @@ impl MtStorage {
                 MAX_MT_SLOTS,
             );
         }
-        self.slots = slot_count.clamp(0, MAX_MT_SLOTS) as u32;
-        self.slots = (mt_slot_info.maximum() + 1) as u32;
-        self.active_slot = mt_slot_info.value().max(0) as u32;
-        self.data.clear();
-        self.codes = 0;
+        this.slots = slot_count.clamp(0, MAX_MT_SLOTS) as u32;
+        this.active_slot = mt_slot_info.value().max(0) as u32;
+        this.data.clear();
+        this.codes = 0;
 
         for mt_code in Abs::MT_SLOT.raw() + 1..Abs::MAX.raw() {
             if !abs_axes.contains(Abs::from_raw(mt_code)) {
@@ -122,20 +127,28 @@ impl MtStorage {
             }
 
             // `mt_code` is supported; fetch its current value for all slots, appending it to `data`
-            self.codes += 1;
-            let start_idx = self.data.len();
-            self.data
-                .resize(self.data.len() + 1 + self.slots as usize, 0);
-            self.data[start_idx] = mt_code.into();
+            this.codes += 1;
+            let start_idx = this.data.len();
+            this.data
+                .resize(this.data.len() + 1 + this.slots as usize, 0);
+            this.data[start_idx] = mt_code.into();
 
             unsafe {
-                EVIOCGMTSLOTS((self.slots as usize + 1) * 4)
-                    .ioctl(evdev, self.data[start_idx..].as_mut_ptr().cast())?;
+                EVIOCGMTSLOTS((this.slots as usize + 1) * 4)
+                    .ioctl(evdev, this.data[start_idx..].as_mut_ptr().cast())?;
             }
         }
-        self.data.shrink_to_fit();
+        this.data.shrink_to_fit();
 
-        Ok(())
+        Ok(this)
+    }
+
+    fn resync_from(&mut self, src: &MtStorage) {
+        // `self` can be empty and `src` may be populated here.
+        self.data.clone_from(&src.data);
+        self.slots = src.slots;
+        self.codes = src.codes;
+        self.active_slot = src.active_slot;
     }
 
     /// Iterator over code groups; each slice has `slots + 1` entries, the first one being the
@@ -209,6 +222,7 @@ struct DeviceState {
 }
 
 impl DeviceState {
+    /// Creates an empty device state, with no buttons pressed and all state at 0.
     fn new(abs_axes: BitSet<Abs>) -> Self {
         Self {
             keys: BitSet::new(),
@@ -226,13 +240,30 @@ impl DeviceState {
         }
     }
 
-    /// Fetches the current device state, and injects synthetic events to compensate for any
-    /// difference to the expected state.
-    ///
-    /// # Postconditions
-    ///
-    /// - `queue` will either be empty, or its last element will be a SYN_REPORT.
-    fn resync(&mut self, evdev: &Evdev, queue: &mut VecDeque<InputEvent>) -> io::Result<()> {
+    /// Fetches the current state of the given device.
+    fn current(evdev: &Evdev) -> io::Result<Self> {
+        let mut abs = [0; Abs::MT_SLOT.raw() as usize];
+        let mut axis = 0;
+        for abs in &mut abs {
+            let info = evdev.abs_info(Abs::from_raw(axis))?;
+            axis += 1;
+            *abs = info.value();
+        }
+
+        let abs_axes = evdev.supported_abs_axes()?;
+        Ok(Self {
+            keys: evdev.key_state()?,
+            leds: evdev.led_state()?,
+            sounds: evdev.sound_state()?,
+            switches: evdev.switch_state()?,
+            abs,
+            abs_axes,
+            mt_storage: MtStorage::current(evdev, &abs_axes)?,
+            last_event: SystemTime::now(),
+        })
+    }
+
+    fn resync_from(&mut self, src: &DeviceState, queue: &mut VecDeque<InputEvent>) {
         fn sync_bitset<V: BitValue>(
             dest: &mut BitSet<V>,
             src: BitSet<V>,
@@ -245,29 +276,13 @@ impl DeviceState {
             *dest = src;
         }
 
-        let now = Instant::now();
-        let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
-
-        // Clear out all events, and drain the kernel buffer too, like libevdev does.
         queue.clear();
-        let mut reads = 0;
-
-        const READ_LIMIT: usize = 16;
-        const READ_SIZE: usize = 128;
-        while evdev.is_readable()? && reads < READ_LIMIT {
-            let mut out = [InputEvent::zeroed(); READ_SIZE];
-            read_raw(&evdev.file, &mut out)?;
-            reads += 1;
-        }
-        if reads >= READ_LIMIT {
-            log::warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
-        }
 
         let mut emit = |ev: InputEvent| {
             queue.push_back(ev.with_time(self.last_event));
         };
 
-        sync_bitset(&mut self.keys, evdev.key_state()?, |key, on| {
+        sync_bitset(&mut self.keys, src.keys, |key, on| {
             emit(
                 KeyEvent::new(
                     key,
@@ -280,32 +295,27 @@ impl DeviceState {
                 .into(),
             );
         });
-        sync_bitset(&mut self.leds, evdev.led_state()?, |led, on| {
+        sync_bitset(&mut self.leds, src.leds, |led, on| {
             emit(LedEvent::new(led, on).into());
         });
-        sync_bitset(&mut self.sounds, evdev.sound_state()?, |snd, playing| {
+        sync_bitset(&mut self.sounds, src.sounds, |snd, playing| {
             emit(SoundEvent::new(snd, playing).into());
         });
-        sync_bitset(&mut self.switches, evdev.switch_state()?, |sw, on| {
+        sync_bitset(&mut self.switches, src.switches, |sw, on| {
             emit(SwitchEvent::new(sw, on).into());
         });
 
         // Re-fetch values of all non-MT absolute axes
-        for abs in self.abs_axes {
-            if abs.raw() >= Abs::MT_SLOT.raw() {
-                break;
-            }
-
-            let prev = self.abs[abs.raw() as usize];
-            let cur = evdev.abs_info(abs)?.value();
-            if prev != cur {
-                emit(AbsEvent::new(abs, cur).into());
+        for (abs, (dest, src)) in zip(&mut self.abs, src.abs).enumerate() {
+            if *dest != src {
+                emit(AbsEvent::new(Abs::from_raw(abs as u16), src).into());
+                *dest = src;
             }
         }
 
         if self.abs_axes.contains(Abs::MT_SLOT) {
             // Re-fetch the state of every MT slot
-            self.mt_storage.resync(&evdev, &self.abs_axes)?;
+            self.mt_storage.resync_from(&src.mt_storage);
         }
         // FIXME: we don't currently *emit* synthetic events for multitouch changes
         // (expectation is that the `valid_slots()` and `slot_state()` API is preferred)
@@ -323,7 +333,33 @@ impl DeviceState {
             assert_ne!(queue.back().unwrap().event_type(), EventType::SYN);
             queue.push_back(SynEvent::new(Syn::REPORT).with_time(self.last_event));
         }
+    }
 
+    /// Fetches the current device state, and injects synthetic events to compensate for any
+    /// difference to the expected state.
+    ///
+    /// # Postconditions
+    ///
+    /// - `queue` will either be empty, or its last element will be a SYN_REPORT.
+    fn resync(&mut self, evdev: &Evdev, queue: &mut VecDeque<InputEvent>) -> io::Result<()> {
+        let now = Instant::now();
+        let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
+
+        // Clear out all events, and drain the kernel buffer too, like libevdev does.
+        let mut reads = 0;
+
+        const READ_LIMIT: usize = 16;
+        const READ_SIZE: usize = 128;
+        while evdev.is_readable()? && reads < READ_LIMIT {
+            let mut out = [InputEvent::zeroed(); READ_SIZE];
+            read_raw(&evdev.file, &mut out)?;
+            reads += 1;
+        }
+        if reads >= READ_LIMIT {
+            log::warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
+        }
+
+        self.resync_from(&DeviceState::current(evdev)?, queue);
         Ok(())
     }
 
