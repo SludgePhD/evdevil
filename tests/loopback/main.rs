@@ -81,7 +81,7 @@ fn setup() -> io::Result<Tester> {
     println!(
         "opened test device '{}' at '{}'",
         evdev.name()?,
-        evdev.path().unwrap().display(),
+        evdev.path().display(),
     );
 
     assert!(!evdev.is_readable()?);
@@ -358,7 +358,7 @@ fn test_sysname() -> io::Result<()> {
     path.push(sysname);
 
     println!("uinput sys path: {}", path.display());
-    println!("evdev path: {}", t.evdev().path().unwrap().display());
+    println!("evdev path: {}", t.evdev().path().display());
 
     if cfg!(target_os = "linux") {
         for res in fs::read_dir(&path)? {
@@ -367,7 +367,7 @@ fn test_sysname() -> io::Result<()> {
                 let mut devpath = PathBuf::from("/dev/input/");
                 devpath.push(entry.file_name());
 
-                assert_eq!(devpath, t.evdev().path().unwrap());
+                assert_eq!(devpath, t.evdev().path());
             }
         }
     }

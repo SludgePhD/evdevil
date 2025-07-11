@@ -26,7 +26,7 @@ fn main() {
 fn run() -> io::Result<()> {
     for res in enumerate()? {
         let device = res?;
-        println!("- {}", device.path().unwrap().display());
+        println!("- {}", device.path().display());
         println!("  id: {:?}", device.input_id()?);
         println!("  name: {:?}", device.name()?);
         println!("  location: {:?}", device.phys()?);

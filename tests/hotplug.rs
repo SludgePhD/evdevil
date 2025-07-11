@@ -24,10 +24,7 @@ fn main() -> io::Result<()> {
         let dev = res?;
         let name = dev.name()?;
         if name == DEVICE_NAME {
-            println!(
-                "success! found test device at {}",
-                dev.path().unwrap().display()
-            );
+            println!("success! found test device at {}", dev.path().display());
             return Ok(());
         } else {
             println!("found non-matching device '{name}'");

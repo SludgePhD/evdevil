@@ -1,12 +1,12 @@
 use std::{
     error::Error,
     ffi::{c_char, c_int, c_uint, c_void},
-    fmt::{self, Write as _},
+    fmt,
     fs::{self, File, ReadDir},
     io::{self, Read as _, Write},
     mem::{self, MaybeUninit},
     os::{
-        fd::{AsFd, AsRawFd, FromRawFd, IntoRawFd},
+        fd::{AsFd, AsRawFd, IntoRawFd},
         unix::{
             fs::FileTypeExt,
             prelude::{BorrowedFd, RawFd},
@@ -60,7 +60,7 @@ use crate::{
 #[derive(Debug)]
 pub struct Evdev {
     pub(crate) file: File,
-    path: Option<PathBuf>,
+    path: PathBuf,
 }
 
 impl AsFd for Evdev {
@@ -82,19 +82,6 @@ impl IntoRawFd for Evdev {
     #[inline]
     fn into_raw_fd(self) -> RawFd {
         self.file.into_raw_fd()
-    }
-}
-
-impl FromRawFd for Evdev {
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        unsafe {
-            let this = Self {
-                file: File::from_raw_fd(fd),
-                path: None,
-            };
-            this.driver_version().unwrap();
-            this
-        }
     }
 }
 
@@ -150,14 +137,11 @@ impl Evdev {
         let now = Instant::now();
 
         let file = Self::try_open(&path)?;
-        let this = Self {
-            file,
-            path: Some(path),
-        };
+        let this = Self { file, path };
         let version = this.driver_version()?;
         log::debug!(
             "opened '{}' in {:?}; driver version {version}",
-            this.path().unwrap().display(),
+            this.path().display(),
             now.elapsed(),
         );
         Ok(this)
@@ -187,6 +171,11 @@ impl Evdev {
         }
 
         File::options().write(true).open(path)
+    }
+
+    /// Returns the (canonicalized) file system path this [`Evdev`] has been created from.
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 
     /// Moves this handle into or out of non-blocking mode.
@@ -243,10 +232,11 @@ impl Evdev {
                     }
                 }
 
-                let mut msg = format!("ioctl {name} failed ({:?})", e.kind());
-                if let Some(path) = &self.path {
-                    write!(msg, " for device {}", path.display()).ok();
-                }
+                let msg = format!(
+                    "ioctl {name} failed for device {} ({:?})",
+                    self.path().display(),
+                    e.kind()
+                );
                 Err(io::Error::new(e.kind(), WrappedError { cause: e, msg }))
             }
         }
@@ -302,13 +292,6 @@ impl Evdev {
             )?;
         };
         Ok(set)
-    }
-
-    /// Returns the (canonicalized) file system path this [`Evdev`] has been created from (if any).
-    ///
-    /// This will return [`Some`] for [`Evdev`]s created by [`enumerate`] and [`Evdev::open`].
-    pub fn path(&self) -> Option<&Path> {
-        self.path.as_deref()
     }
 
     /// Returns the evdev subsystem version.
