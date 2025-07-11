@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.1.4
+
+- Add `EventReader::reports` for iterating over `Report`s.
+- Deprecate `EventReader::next_report` in favor of `EventReader::reports`.
+- Generate synthetic multitouch events when `EventReader` is created or events are dropped.
+- Fall back to write-only mode if opening an `Evdev` in read-only mode fails due to lack of permission.
+
 ## v0.1.3
 
 - Add `EventReader::next_report` for fetching whole `Report`s from the device rather than events.

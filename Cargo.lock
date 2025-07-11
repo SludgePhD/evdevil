@@ -158,7 +158,7 @@ dependencies = [
 
 [[package]]
 name = "evdevil"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "csv",
  "env_logger",
