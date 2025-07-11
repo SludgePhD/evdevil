@@ -506,6 +506,7 @@ fn reader_reports_clear() -> io::Result<()> {
             .reports()
             .next()
             .unwrap()?
+            .into_iter()
             .collect::<Vec<InputEvent>>();
         check_events(
             &report,
@@ -535,14 +536,14 @@ fn reader_reports_collect() -> io::Result<()> {
     tester.with_reader(|uinput, reader| {
         uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
         uinput.write(&[RelEvent::new(Rel::DIAL, 2).into()])?;
-        let mut reports = reader.reports().collect::<io::Result<Vec<_>>>()?;
+        let reports = reader.reports().collect::<io::Result<Vec<_>>>()?;
         assert_eq!(reports.len(), 2);
         check_events(
-            &reports[0].by_ref().collect::<Vec<_>>(),
+            &reports[0].iter().by_ref().collect::<Vec<_>>(),
             &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
         );
         check_events(
-            &reports[1].by_ref().collect::<Vec<_>>(),
+            &reports[1].iter().by_ref().collect::<Vec<_>>(),
             &[RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
         );
 

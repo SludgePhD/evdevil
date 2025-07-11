@@ -8,8 +8,7 @@ use std::{
     fmt,
     fs::File,
     io::{self, Read},
-    iter::{self, zip},
-    marker::PhantomData,
+    iter::{self, FusedIterator, zip},
     mem,
     ops::RangeInclusive,
     slice,
@@ -531,7 +530,7 @@ impl Impl {
         Arc::make_mut(&mut self.incoming).drain(..self.skip);
         self.skip = 0;
     }
-    fn next_report(&mut self, iface: &mut impl Interface) -> io::Result<Report<'_>> {
+    fn next_report(&mut self, iface: &mut impl Interface) -> io::Result<Report> {
         let end = match self
             .incoming
             .iter()
@@ -551,7 +550,6 @@ impl Impl {
         Ok(Report {
             queue: self.incoming.clone(),
             range: skip..=skip + end,
-            _p: PhantomData,
         })
     }
     fn next_report_len(&mut self, iface: &mut impl Interface) -> io::Result<usize> {
@@ -901,7 +899,7 @@ impl EventReader {
         Reports(self)
     }
 
-    fn next_report(&mut self) -> io::Result<Report<'_>> {
+    fn next_report(&mut self) -> io::Result<Report> {
         self.imp.next_report(&mut self.evdev)
     }
 
@@ -1006,47 +1004,92 @@ impl Iterator for IntoEvents {
         self.remaining -= 1;
         Some(Ok(self.reader.next_event()))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.remaining, None)
+    }
 }
 
 /// Iterator over device [`Report`]s.
 ///
 /// Returned by [`EventReader::reports`].
+///
+/// If the [`EventReader`] is in non-blocking mode, the iterator will yield [`None`] when no events
+/// are pending.
+/// Subsequent calls to [`Iterator::next`] may then return [`Some`] again, if more events have
+/// arrived.
 #[derive(Debug)]
 pub struct Reports<'a>(&'a mut EventReader);
 
 impl<'a> Iterator for Reports<'a> {
-    type Item = io::Result<Report<'a>>;
+    type Item = io::Result<Report>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next_report() {
-            Ok(report) => Some(Ok(report.to_owned())),
+            Ok(report) => Some(Ok(report)),
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
             Err(e) => Some(Err(e)),
         }
     }
 }
 
-/// An iterator over a batch of [`InputEvent`]s, terminated with a `SYN_REPORT` event.
+/// A batch of [`InputEvent`]s, terminated with a `SYN_REPORT` event.
 ///
-/// Returned by [`EventReader::next_report`] and the [`Reports`] iterator.
+/// Returned by the [`Reports`] iterator.
+///
+/// [`Report`]s share the [`EventReader`]'s event queue via [`Arc`] where possible. If the user code
+/// collects [`Report`]s from the iterator, fetching new reports will result in new event buffers
+/// being allocated. If user code only lets a single [`Report`] exist at a time, [`Arc::make_mut`]
+/// allows the [`EventReader`] to avoid unnecessary allocations.
 #[derive(Debug)]
-pub struct Report<'a> {
+pub struct Report {
     queue: Arc<VecDeque<InputEvent>>,
     range: RangeInclusive<usize>,
-    _p: PhantomData<&'a InputEvent>,
 }
 
-impl<'a> Report<'a> {
-    fn to_owned(self) -> Report<'static> {
-        Report {
-            queue: self.queue,
-            range: self.range,
-            _p: PhantomData,
+impl Report {
+    /// Returns an iterator over the [`InputEvent`]s in this [`Report`].
+    ///
+    /// [`Report`] also implements [`IntoIterator`] to facilitate the same operation.
+    pub fn iter(&self) -> ReportIter<'_> {
+        self.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Report {
+    type Item = InputEvent;
+    type IntoIter = ReportIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ReportIter {
+            queue: &self.queue,
+            range: self.range.clone(),
         }
     }
 }
 
-impl<'a> Iterator for Report<'a> {
+impl IntoIterator for Report {
+    type Item = InputEvent;
+    type IntoIter = ReportIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ReportIntoIter {
+            queue: self.queue,
+            range: self.range.clone(),
+        }
+    }
+}
+
+/// An owning [`Iterator`] over the [`InputEvent`]s in a [`Report`].
+///
+/// Returned by the [`IntoIterator`] implementation of [`Report`].
+#[derive(Debug)]
+pub struct ReportIntoIter {
+    queue: Arc<VecDeque<InputEvent>>,
+    range: RangeInclusive<usize>,
+}
+
+impl Iterator for ReportIntoIter {
     type Item = InputEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1055,4 +1098,36 @@ impl<'a> Iterator for Report<'a> {
         };
         Some(self.queue[i])
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
 }
+impl ExactSizeIterator for ReportIntoIter {}
+impl FusedIterator for ReportIntoIter {}
+
+/// A borrowing [`Iterator`] over the [`InputEvent`]s in a [`Report`].
+///
+/// Returned by [`Report::iter`] and the [`IntoIterator`] implementation for `&Report`.
+#[derive(Debug)]
+pub struct ReportIter<'a> {
+    queue: &'a VecDeque<InputEvent>,
+    range: RangeInclusive<usize>,
+}
+
+impl<'a> Iterator for ReportIter<'a> {
+    type Item = InputEvent;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some(i) = self.range.next() else {
+            return None;
+        };
+        Some(self.queue[i])
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+}
+impl ExactSizeIterator for ReportIter<'_> {}
+impl FusedIterator for ReportIter<'_> {}

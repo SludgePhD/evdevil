@@ -44,7 +44,7 @@ impl EventReaderTest {
         self.test.raw_events.extend(events);
     }
 
-    fn next_report(&mut self) -> io::Result<Report<'_>> {
+    fn next_report(&mut self) -> io::Result<Report> {
         self.imp.next_report(&mut self.test)
     }
 }
@@ -83,7 +83,7 @@ fn shared_reports() -> io::Result<()> {
 
     let queue_before = Arc::as_ptr(&reader.imp.incoming);
     {
-        let report = reader.next_report()?.to_owned();
+        let report = reader.next_report()?;
         let report_ptr = Arc::as_ptr(&report.queue);
         let queue_ptr = Arc::as_ptr(&reader.imp.incoming);
         assert_eq!(queue_ptr, queue_before, "queue should not be cloned");
@@ -92,13 +92,13 @@ fn shared_reports() -> io::Result<()> {
             "queue should not be cloned for a single report"
         );
         check_events(
-            &report.collect::<Vec<_>>(),
+            &report.into_iter().collect::<Vec<_>>(),
             &[RelEvent::new(Rel::DIAL, 0).into(), Syn::REPORT.into()],
         );
     }
 
     {
-        let report = reader.next_report()?.to_owned();
+        let report = reader.next_report()?;
         let report_ptr = Arc::as_ptr(&report.queue);
         let queue_ptr = Arc::as_ptr(&reader.imp.incoming);
         assert_eq!(
@@ -106,7 +106,7 @@ fn shared_reports() -> io::Result<()> {
             "queue should not be cloned for the second report"
         );
 
-        let report2 = reader.next_report()?.to_owned();
+        let report2 = reader.next_report()?;
         let report2_ptr = Arc::as_ptr(&report.queue);
         let queue_ptr = Arc::as_ptr(&reader.imp.incoming);
 
@@ -122,11 +122,11 @@ fn shared_reports() -> io::Result<()> {
         );
 
         check_events(
-            &report.collect::<Vec<_>>(),
+            &report.into_iter().collect::<Vec<_>>(),
             &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
         );
         check_events(
-            &report2.collect::<Vec<_>>(),
+            &report2.into_iter().collect::<Vec<_>>(),
             &[RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
         );
     }
