@@ -14,8 +14,8 @@
 //!   [`Abs`] or [`Rel`] and accessed from a specific event wrapper.
 //! - **Event Value** ([`InputEvent::raw_value`]): An `i32` describing *what* happened to the object
 //!   identified by the code. This can be the new state of an [`Abs`] axis, an incremental movement
-//!   of a [`Rel`] axis, the new state (pressed/released/repeated) or a [`Key`] or [`Switch`], and
-//!   so on.
+//!   of a [`Rel`] axis, the new state (pressed/released/repeated) of a [`Key`] or [`Switch`], or
+//!   some other value.
 //!
 //! [`InputEvent::kind`] can be used to obtain an [`EventKind`], which can be conveniently `match`ed
 //! on to handle the different types of events.

@@ -143,6 +143,10 @@ impl Tester {
                 assert_eq!(self.evdev().led_state().unwrap(), BitSet::new());
                 assert_eq!(self.evdev().sound_state().unwrap(), BitSet::new());
                 assert_eq!(self.evdev().abs_info(Abs::BRAKE).unwrap(), ABS_INFO_BRAKE);
+                assert_eq!(
+                    self.evdev().abs_info(Abs::MT_SLOT).unwrap(),
+                    ABS_INFO_MT_SLOTS
+                );
                 assert_eq!(self.evdev().key_repeat().unwrap(), Some(KEY_REPEAT));
                 assert_eq!(self.evdev().set_nonblocking(false).unwrap(), false);
                 assert_eq!(self.uinput.set_nonblocking(false).unwrap(), false);
@@ -258,14 +262,15 @@ const SOUNDS: &[Sound] = &[Sound::BELL];
 
 const SWITCHES: &[Switch] = &[Switch::CAMERA_LENS_COVER];
 
+const MT_SLOTS: u16 = 4;
 const ABS_INFO_BRAKE: AbsInfo = AbsInfo::new(-100, 100)
     .with_flat(4)
     .with_fuzz(5)
     .with_resolution(15);
-const MT_SLOTS: u16 = 4;
+const ABS_INFO_MT_SLOTS: AbsInfo = AbsInfo::new(0, MT_SLOTS as i32);
 const ABS: &[AbsSetup] = &[
     AbsSetup::new(Abs::BRAKE, ABS_INFO_BRAKE),
-    AbsSetup::new(Abs::MT_SLOT, AbsInfo::new(0, MT_SLOTS as i32)),
+    AbsSetup::new(Abs::MT_SLOT, ABS_INFO_MT_SLOTS),
     AbsSetup::new(Abs::MT_POSITION_X, AbsInfo::new(-1000, 1000)),
     AbsSetup::new(Abs::MT_POSITION_Y, AbsInfo::new(-1000, 1000)),
     AbsSetup::new(Abs::MT_TRACKING_ID, AbsInfo::new(-1, i32::MAX)),

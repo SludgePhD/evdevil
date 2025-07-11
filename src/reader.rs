@@ -31,7 +31,7 @@ use crate::{
 const MAX_MT_SLOTS: i32 = 60;
 
 /// Storage for the current multitouch state.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 struct MtStorage {
     /// The data buffer contains `codes` number of groups, each prefixed by the `ABS_MT_*` axis
     /// code followed by `slots` values of that code.
@@ -146,12 +146,67 @@ impl MtStorage {
         Ok(this)
     }
 
-    fn resync_from(&mut self, src: &MtStorage) {
+    fn resync_from(
+        &mut self,
+        src: &MtStorage,
+        queue: &mut VecDeque<InputEvent>,
+        last_event: SystemTime,
+    ) {
+        let mut emit = |ev: InputEvent| {
+            queue.push_back(ev.with_time(last_event));
+        };
+
         // `self` can be empty and `src` may be populated here.
-        self.data.clone_from(&src.data);
+        assert!(
+            self.data.is_empty() || self.data.len() == src.data.len(),
+            "`self` must either be empty or have the same layout as `src`",
+        );
+
+        let was_empty = self.data.is_empty();
         self.slots = src.slots;
         self.codes = src.codes;
-        self.active_slot = src.active_slot;
+        self.data.resize(src.data.len(), 0);
+
+        let chunk_size = self.slots as usize + 1;
+        for slot in 0..self.slots {
+            let mut slot_active = false;
+            for code in 0..self.codes {
+                let dest_chunk = &mut self.data[code as usize * chunk_size..][..chunk_size];
+                let src_chunk = &src.data[code as usize * chunk_size..][..chunk_size];
+                if dest_chunk[0] == 0 {
+                    dest_chunk[0] = src_chunk[0];
+                } else {
+                    assert_eq!(dest_chunk[0], src_chunk[0]);
+                }
+
+                let abs = Abs::from_raw(src_chunk[0] as _);
+
+                let dest = &mut dest_chunk[slot as usize + 1];
+                let src = &src_chunk[slot as usize + 1];
+                if *dest != *src {
+                    // For `ABS_MT_TRACKING_ID`, the "default state" should be -1 instead of 0 like
+                    // it is for other axes. This avoids emitting useless events when an
+                    // `EventReader` is first created.
+                    if abs == Abs::MT_TRACKING_ID && *src == -1 && was_empty {
+                        *dest = *src;
+                        continue;
+                    }
+
+                    *dest = *src;
+                    if !slot_active {
+                        slot_active = true;
+                        emit(AbsEvent::new(Abs::MT_SLOT, slot as _).into());
+                    }
+
+                    emit(AbsEvent::new(abs, *src as _).into());
+                }
+            }
+        }
+
+        if self.active_slot != src.active_slot {
+            self.active_slot = src.active_slot;
+            emit(AbsEvent::new(Abs::MT_SLOT, src.active_slot as _).into());
+        }
     }
 
     /// Iterator over code groups; each slice has `slots + 1` entries, the first one being the
@@ -313,10 +368,9 @@ impl DeviceState {
 
         if self.abs_axes.contains(Abs::MT_SLOT) {
             // Re-fetch the state of every MT slot
-            self.mt_storage.resync_from(&src.mt_storage);
+            self.mt_storage
+                .resync_from(&src.mt_storage, queue, self.last_event);
         }
-        // FIXME: we don't currently *emit* synthetic events for multitouch changes
-        // (expectation is that the `valid_slots()` and `slot_state()` API is preferred)
 
         // If we emitted any synthetic events, follow up with a SYN_REPORT.
         // It's not clear if this is *strictly* necessary after a SYN_DROPPED: the kernel seems to
@@ -420,7 +474,7 @@ struct Impl {
     /// Queue of incoming events.
     ///
     /// Events are `read(2)` from the device into this queue, and are processed (updating the state
-    /// of the `EventReader`) when they are pulled out of the queue by the `events` or `reports`
+    /// of the `EventReader`) when they are pulled out of the queue by the [`Events`] or [`Reports`]
     /// iterators.
     ///
     /// Wrapped in an `Arc` to allow multiple `Report`s to coexist, if the caller insists on doing
@@ -455,11 +509,12 @@ impl Impl {
     }
 
     fn slot_state(&self, slot: impl TryInto<Slot>, code: Abs) -> Option<i32> {
-        let slot: Slot = slot.try_into().ok()?;
         assert!(
             code.raw() > Abs::MT_SLOT.raw(),
             "`slot_state` requires an `ABS_MT_*` value above `ABS_MT_SLOT`"
         );
+
+        let slot: Slot = slot.try_into().ok()?;
         self.state
             .mt_storage
             .group_for_code(code)?

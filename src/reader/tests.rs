@@ -1,4 +1,4 @@
-use std::cmp::min;
+use std::{cmp::min, time::Duration};
 
 use crate::event::{Rel, RelEvent};
 
@@ -132,4 +132,105 @@ fn shared_reports() -> io::Result<()> {
     }
 
     Ok(())
+}
+
+/// Functionality for multitouch tests below.
+impl MtStorage {
+    fn new_test(slots: u32, codes: &[Abs]) -> Self {
+        let mut this = Self::empty();
+        this.slots = slots;
+        this.codes = codes.len().try_into().unwrap();
+
+        let chunk_size = slots as usize + 1;
+        this.data.resize(codes.len() * chunk_size, 0);
+
+        for (chunk, code) in zip(this.data.chunks_exact_mut(chunk_size), codes) {
+            chunk[0] = code.raw().into();
+        }
+
+        this
+    }
+
+    fn with_value(mut self, slot: impl TryInto<Slot>, abs: Abs, value: i32) -> Self {
+        let slot: Slot = slot.try_into().ok().unwrap();
+        let slot = slot.raw() as usize;
+        assert!(slot < self.slots as usize);
+        self.mut_group_for_code(abs).unwrap()[slot] = value;
+        self
+    }
+
+    fn with_active_slot(mut self, slot: impl TryInto<Slot>) -> Self {
+        self.active_slot = slot.try_into().ok().unwrap().raw() as _;
+        self
+    }
+}
+
+#[track_caller]
+fn check_mt_resync(mut old: MtStorage, new: MtStorage, events: &[InputEvent]) {
+    let mut queue = VecDeque::new();
+    let last_event = SystemTime::UNIX_EPOCH + Duration::from_secs(1);
+    old.resync_from(&new, &mut queue, last_event);
+
+    assert_eq!(old, new);
+
+    let actual = Vec::from(queue);
+    check_events(&actual, events);
+}
+
+#[test]
+fn mt_resync_active_slot() {
+    check_mt_resync(
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X]),
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X]).with_active_slot(1),
+        &[AbsEvent::new(Abs::MT_SLOT, 1).into()],
+    );
+    check_mt_resync(
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X]).with_active_slot(1),
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X]),
+        &[AbsEvent::new(Abs::MT_SLOT, 0).into()],
+    );
+}
+
+#[test]
+fn mt_resync_noop() {
+    check_mt_resync(
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X]),
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X]),
+        &[],
+    );
+}
+
+#[test]
+fn mt_resync_slot_data() {
+    // Slot 0 values change, slot 1 values don't.
+    check_mt_resync(
+        MtStorage::new_test(2, &[Abs::MT_TRACKING_ID, Abs::MT_POSITION_X])
+            .with_value(0, Abs::MT_TRACKING_ID, -1)
+            .with_value(0, Abs::MT_POSITION_X, 100)
+            .with_value(1, Abs::MT_POSITION_X, 111),
+        MtStorage::new_test(2, &[Abs::MT_TRACKING_ID, Abs::MT_POSITION_X])
+            .with_value(0, Abs::MT_TRACKING_ID, 0)
+            .with_value(1, Abs::MT_POSITION_X, 111),
+        &[
+            *AbsEvent::new(Abs::MT_SLOT, 0),
+            *AbsEvent::new(Abs::MT_TRACKING_ID, 0),
+            *AbsEvent::new(Abs::MT_POSITION_X, 0),
+        ],
+    );
+
+    // Values for both slots change.
+    check_mt_resync(
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X])
+            .with_value(0, Abs::MT_POSITION_X, 111)
+            .with_value(1, Abs::MT_POSITION_X, 222),
+        MtStorage::new_test(2, &[Abs::MT_POSITION_X])
+            .with_value(0, Abs::MT_POSITION_X, 112)
+            .with_value(1, Abs::MT_POSITION_X, 223),
+        &[
+            *AbsEvent::new(Abs::MT_SLOT, 0),
+            *AbsEvent::new(Abs::MT_POSITION_X, 112),
+            *AbsEvent::new(Abs::MT_SLOT, 1),
+            *AbsEvent::new(Abs::MT_POSITION_X, 223),
+        ],
+    );
 }

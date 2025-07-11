@@ -48,6 +48,24 @@ fn smoke() -> io::Result<()> {
         let slots = reader.valid_slots().collect::<Vec<_>>();
         assert_eq!(slots, &[3]);
 
+        // Clear all slot state. Otherwise every subsequently created `EventReader` will emit MT events on creation.
+        uinput
+            .writer()
+            .slot(3)?
+            .set_position(0, 0)?
+            .set_tracking_id(-1)?
+            .finish_slot()?
+            .slot(0)?
+            .set_position(0, 0)?
+            .set_tracking_id(-1)?
+            .finish_slot()?
+            .finish()?;
+
+        reader.update()?;
+
+        let slots = reader.valid_slots().collect::<Vec<_>>();
+        assert_eq!(slots, &[] as &[i32]);
+
         Ok(())
     })?;
 
