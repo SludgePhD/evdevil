@@ -149,17 +149,7 @@ impl Evdev {
     fn open_unchecked(path: PathBuf) -> io::Result<Self> {
         let now = Instant::now();
 
-        let file = match File::options().read(true).write(true).open(&path) {
-            Ok(file) => file,
-            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                log::warn!(
-                    "failed to open '{}' in read-write mode, retrying in read-only",
-                    path.display()
-                );
-                File::open(&path)?
-            }
-            Err(e) => return Err(e),
-        };
+        let file = Self::try_open(&path)?;
         let this = Self {
             file,
             path: Some(path),
@@ -171,6 +161,32 @@ impl Evdev {
             now.elapsed(),
         );
         Ok(this)
+    }
+
+    fn try_open(path: &Path) -> io::Result<File> {
+        match File::options().read(true).write(true).open(path) {
+            Ok(file) => return Ok(file),
+            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                log::warn!(
+                    "no permission to open '{}' in read-write mode, retrying in read-only",
+                    path.display()
+                );
+            }
+            Err(e) => return Err(e),
+        }
+
+        match File::options().read(true).open(path) {
+            Ok(file) => return Ok(file),
+            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                log::warn!(
+                    "no permission to open '{}' in read-only mode, retrying in write-only",
+                    path.display()
+                );
+            }
+            Err(e) => return Err(e),
+        }
+
+        File::options().write(true).open(path)
     }
 
     /// Moves this handle into or out of non-blocking mode.
