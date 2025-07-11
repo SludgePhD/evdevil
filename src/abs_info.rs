@@ -32,7 +32,7 @@ impl AbsInfo {
     ///
     /// This is *typically* between [`AbsInfo::minimum`] and [`AbsInfo::maximum`], but this is not
     /// enforced by the kernel. [`AbsInfo::value`] clamps the value to the valid range.
-    pub fn raw_value(&self) -> i32 {
+    pub const fn raw_value(&self) -> i32 {
         self.0.value
     }
 
@@ -41,7 +41,7 @@ impl AbsInfo {
         self
     }
 
-    pub fn minimum(&self) -> i32 {
+    pub const fn minimum(&self) -> i32 {
         self.0.minimum
     }
 
@@ -50,7 +50,7 @@ impl AbsInfo {
         self
     }
 
-    pub fn maximum(&self) -> i32 {
+    pub const fn maximum(&self) -> i32 {
         self.0.maximum
     }
 
@@ -59,7 +59,7 @@ impl AbsInfo {
         self
     }
 
-    pub fn fuzz(&self) -> i32 {
+    pub const fn fuzz(&self) -> i32 {
         self.0.fuzz
     }
 
@@ -68,7 +68,7 @@ impl AbsInfo {
         self
     }
 
-    pub fn flat(&self) -> i32 {
+    pub const fn flat(&self) -> i32 {
         self.0.flat
     }
 
@@ -90,7 +90,7 @@ impl AbsInfo {
     /// units for the main X/Y/Z axes are in **units/g** instead.
     ///
     /// Rotational axes ([`Abs::RX`], [`Abs::RY`], [`Abs::RZ`]) use **units/radian**.
-    pub fn resolution(&self) -> i32 {
+    pub const fn resolution(&self) -> i32 {
         self.0.resolution
     }
 
