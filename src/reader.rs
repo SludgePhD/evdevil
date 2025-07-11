@@ -901,12 +901,7 @@ impl EventReader {
         Reports(self)
     }
 
-    /// Fetches the next batch of events from the device.
-    ///
-    /// The returned [`Report`] can be iterated over to yield the events contained in the batch.
-    // FIXME(breaking): make this private
-    #[deprecated(note = "use the `EventReader::reports` iterator instead")]
-    pub fn next_report(&mut self) -> io::Result<Report<'_>> {
+    fn next_report(&mut self) -> io::Result<Report<'_>> {
         self.imp.next_report(&mut self.evdev)
     }
 
@@ -1022,7 +1017,6 @@ pub struct Reports<'a>(&'a mut EventReader);
 impl<'a> Iterator for Reports<'a> {
     type Item = io::Result<Report<'a>>;
 
-    #[allow(deprecated)]
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next_report() {
             Ok(report) => Some(Ok(report.to_owned())),

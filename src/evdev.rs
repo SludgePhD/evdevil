@@ -637,12 +637,6 @@ impl Evdev {
         EventReader::new(self)
     }
 
-    /// Deprecated alias of [`Evdev::is_readable`].
-    #[deprecated(note = "renamed to `is_readable`")]
-    pub fn can_read(&self) -> io::Result<bool> {
-        self.is_readable()
-    }
-
     /// Returns whether this device has any pending *raw* events that can be read without blocking.
     ///
     /// If this returns `true`, calling [`Evdev::raw_events()`] and then calling

@@ -505,12 +505,6 @@ impl UinputDevice {
         Events { dev: self }
     }
 
-    /// Deprecated alias of [`UinputDevice::is_readable`].
-    #[deprecated(note = "renamed to `is_readable`")]
-    pub fn can_read(&self) -> io::Result<bool> {
-        is_readable(self.as_raw_fd())
-    }
-
     /// Returns whether this device has any pending events that can be read without blocking.
     ///
     /// If this returns `true`, calling [`UinputDevice::events()`] and then calling
