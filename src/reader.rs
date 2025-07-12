@@ -300,15 +300,16 @@ impl DeviceState {
 
     /// Fetches the current state of the given device.
     fn current(evdev: &Evdev) -> io::Result<Self> {
+        let abs_axes = evdev.supported_abs_axes()?;
         let mut abs = [0; Abs::MT_SLOT.raw() as usize];
-        let mut axis = 0;
-        for abs in &mut abs {
-            let info = evdev.abs_info(Abs::from_raw(axis))?;
-            axis += 1;
-            *abs = info.value();
+        for (i, value) in abs.iter_mut().enumerate() {
+            let axis = Abs::from_raw(i as _);
+            if abs_axes.contains(axis) {
+                let info = evdev.abs_info(axis)?;
+                *value = info.value();
+            }
         }
 
-        let abs_axes = evdev.supported_abs_axes()?;
         Ok(Self {
             keys: evdev.key_state()?,
             leds: evdev.led_state()?,
