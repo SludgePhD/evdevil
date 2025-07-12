@@ -11,6 +11,7 @@ use std::{
     iter::{self, FusedIterator, zip},
     mem,
     ops::RangeInclusive,
+    os::fd::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, RawFd},
     slice,
     sync::Arc,
     time::{Instant, SystemTime},
@@ -725,6 +726,27 @@ impl Interface for Evdev {
 pub struct EventReader {
     evdev: Evdev,
     imp: Impl,
+}
+
+impl AsFd for EventReader {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.evdev.as_fd()
+    }
+}
+
+impl AsRawFd for EventReader {
+    #[inline]
+    fn as_raw_fd(&self) -> RawFd {
+        self.evdev.as_raw_fd()
+    }
+}
+
+impl IntoRawFd for EventReader {
+    #[inline]
+    fn into_raw_fd(self) -> RawFd {
+        self.evdev.into_raw_fd()
+    }
 }
 
 impl EventReader {
