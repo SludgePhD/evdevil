@@ -492,8 +492,7 @@ impl SwitchEvent {
     }
 
     pub fn is_pressed(&self) -> bool {
-        // FIXME: do other values mean anything?
-        self.raw_value() == 1
+        self.raw_value() != 0
     }
 }
 impl fmt::Debug for SwitchEvent {
