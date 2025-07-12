@@ -1,7 +1,14 @@
+//! Rust bindings to `evdev` and `uinput`.
+//!
+//! This crate provides an ergonomic interface to Linux' input subsystem.
+
 #![warn(missing_debug_implementations)]
 
 #[macro_use]
 mod macros;
+
+#[doc = include_str!("../README.md")]
+mod readme {}
 
 mod abs_info;
 mod batch;

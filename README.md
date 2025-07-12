@@ -1,4 +1,6 @@
-# `evdev` and `uinput` bindings
+# `evdevil`: Rust bindings to *evdev* and *uinput*
+
+This library provides an interface to the Linux and FreeBSD input device subsystem.
 
 ## Features
 
