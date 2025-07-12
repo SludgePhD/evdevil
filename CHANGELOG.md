@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.0
+
+### Breaking Changes
+
+- Remove previously deprecated items.
+- Change `Evdev::path` to return `&Path` instead of `Option<&Path>`.
+- Replace `Iterator` impl of `Report` with `IntoIterator` impls.
+- Change `InputEvent::kind` to return `EventKind` instead of `Option<EventKind>`.
+
+### New Features
+
+- Implement `AsFd`, `AsRawFd`, and `IntoRawFd` for `EventReader` to mirror `Evdev`.
+- Make most `AbsInfo` methods `const`.
+
 ## v0.1.4
 
 - Add `EventReader::reports` for iterating over `Report`s.
