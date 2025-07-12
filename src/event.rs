@@ -193,11 +193,11 @@ impl InputEvent {
     /// [`EventKind`] is a matchable, type-safe `enum` which is intended to be the primary way most
     /// applications examine input events.
     ///
-    /// Returns [`None`] when `self` doesn't correspond to any of the known [`EventKind`]s. In that
-    /// case, the caller can still examine the *raw* event data if desired, but most consumers will
-    /// likely simply drop the [`InputEvent`] without handling it.
-    pub fn kind(&self) -> Option<EventKind> {
-        Some(match self.event_type() {
+    /// [`EventKind`] is `#[non_exhaustive]`, so matching on it requires a wildcard arm that will
+    /// catch any events that don't have a specific [`EventKind`] variant.
+    /// Future versions of `evdevil` might add new variants to catch those events.
+    pub fn kind(&self) -> EventKind {
+        match self.event_type() {
             EventType::SYN => SynEvent(*self).into(),
             EventType::KEY => KeyEvent(*self).into(),
             EventType::REL => RelEvent(*self).into(),
@@ -209,8 +209,8 @@ impl InputEvent {
             EventType::SND => SoundEvent(*self).into(),
             EventType::UINPUT => UinputEvent(*self).into(),
             EventType::FF => ForceFeedbackEvent(*self).into(),
-            _ => return None,
-        })
+            _ => EventKind::Other(*self),
+        }
     }
 
     /// Returns the [`EventType`] of this event.
@@ -238,14 +238,14 @@ impl InputEvent {
 impl fmt::Debug for InputEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind() {
-            Some(kind) => kind.fmt(f),
-            None => f
+            EventKind::Other(_) => f
                 .debug_struct("InputEvent")
                 .field("time", &self.time())
                 .field("type", &self.event_type())
                 .field("code", &self.raw_code())
                 .field("value", &self.raw_value())
                 .finish(),
+            kind => kind.fmt(f),
         }
     }
 }
@@ -289,6 +289,13 @@ macro_rules! event_wrappers {
                 $( #[$attr] )*
                 $variant($name),
             )*
+
+            /// Fallback variant for unknown events.
+            ///
+            /// This cannot be matched on by user code. Future versions of `evdevil` might add new
+            /// variants to [`EventKind`] that match events previously captured as `Other`.
+            #[non_exhaustive] // prevents construction and use in patterns
+            Other(InputEvent),
         }
 
         impl From<EventKind> for InputEvent {
@@ -297,6 +304,7 @@ macro_rules! event_wrappers {
                     $(
                         EventKind::$variant(it) => *it,
                     )*
+                    EventKind::Other(ev) => ev,
                 }
             }
         }

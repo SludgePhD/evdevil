@@ -11,12 +11,12 @@ fn set_clockid() -> io::Result<()> {
     t.uinput.write(&[RelEvent::new(Rel::DIAL, 78).into()])?;
     let ev = t.evdev().raw_events().next().unwrap()?;
     match ev.kind() {
-        Some(EventKind::Rel(ev)) if ev.rel() == Rel::DIAL && ev.value() == 78 => {}
+        EventKind::Rel(ev) if ev.rel() == Rel::DIAL && ev.value() == 78 => {}
         _ => panic!("unexpected event: {ev:?}"),
     }
     let ev = t.evdev().raw_events().next().unwrap()?;
     match ev.kind() {
-        Some(EventKind::Syn(ev)) if ev.syn() == Syn::REPORT => {}
+        EventKind::Syn(ev) if ev.syn() == Syn::REPORT => {}
         _ => panic!("unexpected event: {ev:?}"),
     }
 
@@ -27,12 +27,12 @@ fn set_clockid() -> io::Result<()> {
     t.uinput.write(&[RelEvent::new(Rel::DIAL, 78).into()])?;
     let ev = t.evdev().raw_events().next().unwrap()?;
     match ev.kind() {
-        Some(EventKind::Rel(rel)) if rel.rel() == Rel::DIAL && rel.value() == 78 => {}
+        EventKind::Rel(rel) if rel.rel() == Rel::DIAL && rel.value() == 78 => {}
         _ => panic!("unexpected event: {ev:?}"),
     }
     let ev = t.evdev().raw_events().next().unwrap()?;
     match ev.kind() {
-        Some(EventKind::Syn(ev)) if ev.syn() == Syn::REPORT => {}
+        EventKind::Syn(ev) if ev.syn() == Syn::REPORT => {}
         _ => panic!("unexpected event: {ev:?}"),
     }
 

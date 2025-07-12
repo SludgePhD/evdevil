@@ -23,25 +23,25 @@ fn get_set_repeat() -> io::Result<()> {
 
     assert!(t.uinput.is_readable()?);
     match t.uinput.events().next().unwrap()?.kind() {
-        Some(EventKind::Repeat(_)) => {}
+        EventKind::Repeat(_) => {}
         e => panic!("unexpected event {e:?}"),
     }
     match t.uinput.events().next().unwrap()?.kind() {
-        Some(EventKind::Repeat(_)) => {}
+        EventKind::Repeat(_) => {}
         e => panic!("unexpected event {e:?}"),
     }
 
     assert!(t.evdev().is_readable()?);
     match t.evdev().raw_events().next().unwrap()?.kind() {
-        Some(EventKind::Repeat(_)) => {}
+        EventKind::Repeat(_) => {}
         e => panic!("unexpected event {e:?}"),
     }
     match t.evdev().raw_events().next().unwrap()?.kind() {
-        Some(EventKind::Repeat(_)) => {}
+        EventKind::Repeat(_) => {}
         e => panic!("unexpected event {e:?}"),
     }
     match t.evdev().raw_events().next().unwrap()?.kind() {
-        Some(EventKind::Syn(ev)) if ev.syn() == Syn::REPORT => {}
+        EventKind::Syn(ev) if ev.syn() == Syn::REPORT => {}
         e => panic!("unexpected event {e:?}"),
     }
     assert!(!t.evdev().is_readable()?);
@@ -50,11 +50,11 @@ fn get_set_repeat() -> io::Result<()> {
     t.evdev().set_key_repeat(KEY_REPEAT)?;
     assert!(t.uinput.is_readable()?);
     match t.uinput.events().next().unwrap()?.kind() {
-        Some(EventKind::Repeat(_)) => {}
+        EventKind::Repeat(_) => {}
         e => panic!("unexpected event {e:?}"),
     }
     match t.uinput.events().next().unwrap()?.kind() {
-        Some(EventKind::Repeat(_)) => {}
+        EventKind::Repeat(_) => {}
         e => panic!("unexpected event {e:?}"),
     }
 

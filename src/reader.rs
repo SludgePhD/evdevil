@@ -418,7 +418,7 @@ impl DeviceState {
     /// Ingests an [`InputEvent`] and updates the local device state accordingly.
     fn update_state(&mut self, ev: InputEvent) {
         match ev.kind() {
-            Some(EventKind::Abs(ev)) => {
+            EventKind::Abs(ev) => {
                 if ev.abs().raw() < Abs::MT_SLOT.raw() {
                     self.abs[ev.abs().raw() as usize] = ev.value();
                 } else if ev.abs() == Abs::MT_SLOT {
@@ -432,7 +432,7 @@ impl DeviceState {
                     }
                 }
             }
-            Some(EventKind::Key(ev)) => match ev.state() {
+            EventKind::Key(ev) => match ev.state() {
                 KeyState::PRESSED => {
                     self.keys.insert(ev.key());
                 }
@@ -441,21 +441,21 @@ impl DeviceState {
                 }
                 _ => {}
             },
-            Some(EventKind::Led(ev)) => {
+            EventKind::Led(ev) => {
                 if ev.is_on() {
                     self.leds.insert(ev.led());
                 } else {
                     self.leds.remove(ev.led());
                 }
             }
-            Some(EventKind::Switch(ev)) => {
+            EventKind::Switch(ev) => {
                 if ev.is_pressed() {
                     self.switches.insert(ev.switch());
                 } else {
                     self.switches.remove(ev.switch());
                 }
             }
-            Some(EventKind::Sound(ev)) => {
+            EventKind::Sound(ev) => {
                 if ev.is_playing() {
                     self.sounds.insert(ev.sound());
                 } else {
@@ -623,7 +623,7 @@ impl Impl {
             };
             let ev = incoming[end];
             let syn = match ev.kind() {
-                Some(EventKind::Syn(ev)) => ev,
+                EventKind::Syn(ev) => ev,
                 _ => unreachable!("got invalid event at the end of a batch: {ev:?}"),
             };
 
@@ -945,7 +945,7 @@ fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
 
 fn report_or_dropped(ev: &InputEvent) -> bool {
     match ev.kind() {
-        Some(EventKind::Syn(ev)) => ev.syn() == Syn::REPORT || ev.syn() == Syn::DROPPED,
+        EventKind::Syn(ev) => ev.syn() == Syn::REPORT || ev.syn() == Syn::DROPPED,
         _ => false,
     }
 }

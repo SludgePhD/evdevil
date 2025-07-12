@@ -45,7 +45,7 @@ impl<'a> FFTest<'a> {
         });
 
         let ours = match self.t.uinput.events().next().unwrap()?.kind() {
-            Some(EventKind::Uinput(ui)) if ui.code() == UinputCode::FF_UPLOAD => {
+            EventKind::Uinput(ui) if ui.code() == UinputCode::FF_UPLOAD => {
                 log::debug!("got event {ui:?}");
                 self.t.uinput.ff_upload(&ui, |upl| {
                     assert_eq!(upl.effect().effect_type(), effect.effect_type());
@@ -82,7 +82,7 @@ impl<'a> FFTest<'a> {
         });
 
         match self.t.uinput.events().next().unwrap()?.kind() {
-            Some(EventKind::ForceFeedback(ev)) => {
+            EventKind::ForceFeedback(ev) => {
                 assert_eq!(ev.code(), Some(ForceFeedbackCode::ControlEffect(id)));
                 assert_eq!(ev.raw_value(), if play { 1 } else { 0 });
             }
@@ -108,7 +108,7 @@ impl<'a> FFTest<'a> {
 
         // uinput will always send a stop event first.
         match self.t.uinput.events().next().unwrap()?.kind() {
-            Some(EventKind::ForceFeedback(ev)) => {
+            EventKind::ForceFeedback(ev) => {
                 assert_eq!(ev.code(), Some(ForceFeedbackCode::ControlEffect(id)));
                 assert_eq!(ev.raw_value(), 0);
             }
@@ -116,7 +116,7 @@ impl<'a> FFTest<'a> {
         }
 
         match self.t.uinput.events().next().unwrap()?.kind() {
-            Some(EventKind::Uinput(ui)) if ui.code() == UinputCode::FF_ERASE => {
+            EventKind::Uinput(ui) if ui.code() == UinputCode::FF_ERASE => {
                 self.t.uinput.ff_erase(&ui, |erase| {
                     assert_eq!(erase.effect_id(), id);
                     Ok(())

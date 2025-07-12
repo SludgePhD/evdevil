@@ -41,7 +41,7 @@ fn main() -> io::Result<()> {
         let event = res?;
         println!("Received event: {event:?}");
         match event.kind() {
-            Some(EventKind::Uinput(ev)) => match ev.code() {
+            EventKind::Uinput(ev) => match ev.code() {
                 UinputCode::FF_UPLOAD => dev.ff_upload(&ev, |upl| {
                     println!("Force-Feedback upload: {upl:?}");
                     Ok(())

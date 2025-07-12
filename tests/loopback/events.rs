@@ -285,9 +285,9 @@ fn test_overflow() -> io::Result<()> {
             Err(e) => return Err(e),
         };
         match event.kind() {
-            Some(EventKind::Rel(e)) if e.rel() == Rel::DIAL => count += 1,
-            Some(EventKind::Syn(e)) if e.syn() == Syn::REPORT => count += 1,
-            Some(EventKind::Syn(e)) if e.syn() == Syn::DROPPED => {
+            EventKind::Rel(e) if e.rel() == Rel::DIAL => count += 1,
+            EventKind::Syn(e) if e.syn() == Syn::REPORT => count += 1,
+            EventKind::Syn(e) if e.syn() == Syn::DROPPED => {
                 println!("{count} events before SYN_DROPPED");
                 assert!(count < OVERFLOW_COUNT);
                 break;
