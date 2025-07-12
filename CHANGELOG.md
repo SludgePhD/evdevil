@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+### Fixes
+
+- Fix `InvalidInput` error when creating `EventReader`s for most devices.
+
 ## v0.2.0
 
 ### Breaking Changes
