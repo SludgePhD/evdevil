@@ -150,6 +150,7 @@ impl Tester {
                 assert_eq!(self.evdev().key_repeat().unwrap(), Some(KEY_REPEAT));
                 assert_eq!(self.evdev().set_nonblocking(false).unwrap(), false);
                 assert_eq!(self.uinput.set_nonblocking(false).unwrap(), false);
+                // NB: does not check multitouch slot states, due to lack of evdevil API
             }
         }
         impl Deref for TesterHandle {
