@@ -137,8 +137,11 @@ impl MtStorage {
             this.data[start_idx] = mt_code.into();
 
             unsafe {
-                EVIOCGMTSLOTS((this.slots as usize + 1) * 4)
-                    .ioctl(evdev, this.data[start_idx..].as_mut_ptr().cast())?;
+                evdev.ioctl(
+                    "EVIOCGMTSLOTS",
+                    EVIOCGMTSLOTS((this.slots as usize + 1) * 4),
+                    this.data[start_idx..].as_mut_ptr().cast(),
+                )?;
             }
         }
         this.data.shrink_to_fit();
