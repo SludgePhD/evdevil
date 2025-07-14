@@ -13,7 +13,7 @@ use std::{
         },
     },
     path::{Path, PathBuf},
-    ptr, slice,
+    slice,
     time::Instant,
 };
 
@@ -489,7 +489,7 @@ impl Evdev {
     /// (including this one) fail with `ENODEV`.
     pub fn revoke(&self) -> io::Result<()> {
         unsafe {
-            self.ioctl("EVIOCREVOKE", EVIOCREVOKE, ptr::null())?;
+            self.ioctl("EVIOCREVOKE", EVIOCREVOKE, 0)?;
             Ok(())
         }
     }
