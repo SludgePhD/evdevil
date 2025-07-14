@@ -236,9 +236,9 @@ checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
 
 [[package]]
 name = "linux-ioctl"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d21b9069801ea0ceb4181430bd1de6a5dc0f564bb12fecfa9be970e89c5e0d0a"
+checksum = "543f92dc2a5109c480df389ffbc132a8a72f5be63b52adf0c0a5d41f5a0852d6"
 dependencies = [
  "libc",
 ]
