@@ -208,7 +208,12 @@ impl Evdev {
     }
 
     /// Executes `ioctl` and adds context to the error.
-    unsafe fn ioctl<T>(&self, name: &'static str, ioctl: Ioctl<T>, arg: T) -> io::Result<c_int> {
+    pub(crate) unsafe fn ioctl<T>(
+        &self,
+        name: &'static str,
+        ioctl: Ioctl<T>,
+        arg: T,
+    ) -> io::Result<c_int> {
         match unsafe { ioctl.ioctl(self, arg) } {
             Ok(ok) => Ok(ok),
             Err(e) => {
