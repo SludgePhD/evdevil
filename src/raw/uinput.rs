@@ -50,17 +50,46 @@ pub struct uinput_abs_setup {
 
 pub const UI_ABS_SETUP: Ioctl<*const uinput_abs_setup> = _IOW(UINPUT_IOCTL_BASE, 4);
 
-pub const UI_SET_EVBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 100).with_direct_arg();
-pub const UI_SET_KEYBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 101).with_direct_arg();
-pub const UI_SET_RELBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 102).with_direct_arg();
-pub const UI_SET_ABSBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 103).with_direct_arg();
-pub const UI_SET_MSCBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 104).with_direct_arg();
-pub const UI_SET_LEDBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 105).with_direct_arg();
-pub const UI_SET_SNDBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 106).with_direct_arg();
-pub const UI_SET_FFBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 107).with_direct_arg();
-pub const UI_SET_PHYS: Ioctl<*const c_char> = _IOW(UINPUT_IOCTL_BASE, 108).with_direct_arg();
-pub const UI_SET_SWBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 109).with_direct_arg();
-pub const UI_SET_PROPBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 110).with_direct_arg();
+#[cfg(target_os = "freebsd")]
+mod ioctls {
+    use linux_ioctl::IOC_VOID;
+
+    use super::*;
+
+    const fn _IOWINT(group: u8, nr: u8) -> Ioctl<c_int> {
+        _IOC(IOC_VOID, group, nr, size_of::<c_int>())
+    }
+
+    pub const UI_SET_EVBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 100);
+    pub const UI_SET_KEYBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 101);
+    pub const UI_SET_RELBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 102);
+    pub const UI_SET_ABSBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 103);
+    pub const UI_SET_MSCBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 104);
+    pub const UI_SET_LEDBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 105);
+    pub const UI_SET_SNDBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 106);
+    pub const UI_SET_FFBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 107);
+    pub const UI_SET_PHYS: Ioctl<*const c_char> = _IO(UINPUT_IOCTL_BASE, 108).with_arg();
+    pub const UI_SET_SWBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 109);
+    pub const UI_SET_PROPBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 110);
+}
+
+#[cfg(not(target_os = "freebsd"))]
+mod ioctls {
+    use super::*;
+    pub const UI_SET_EVBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 100).with_direct_arg();
+    pub const UI_SET_KEYBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 101).with_direct_arg();
+    pub const UI_SET_RELBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 102).with_direct_arg();
+    pub const UI_SET_ABSBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 103).with_direct_arg();
+    pub const UI_SET_MSCBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 104).with_direct_arg();
+    pub const UI_SET_LEDBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 105).with_direct_arg();
+    pub const UI_SET_SNDBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 106).with_direct_arg();
+    pub const UI_SET_FFBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 107).with_direct_arg();
+    pub const UI_SET_PHYS: Ioctl<*const c_char> = _IOW(UINPUT_IOCTL_BASE, 108).with_direct_arg();
+    pub const UI_SET_SWBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 109).with_direct_arg();
+    pub const UI_SET_PROPBIT: Ioctl<c_int> = _IOW(UINPUT_IOCTL_BASE, 110).with_direct_arg();
+}
+
+pub use ioctls::*;
 
 pub const UI_BEGIN_FF_UPLOAD: Ioctl<*mut uinput_ff_upload> = _IOWR(UINPUT_IOCTL_BASE, 200);
 pub const UI_END_FF_UPLOAD: Ioctl<*const uinput_ff_upload> = _IOW(UINPUT_IOCTL_BASE, 201);
