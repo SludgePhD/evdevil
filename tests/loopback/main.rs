@@ -207,6 +207,7 @@ impl Tester {
     }
 
     /// Schedules `thread` to happen in a background thread.
+    #[cfg_attr(target_os = "freebsd", expect(dead_code))]
     fn with_evdev_thread(
         &mut self,
         thread: impl FnOnce(&mut Evdev) -> io::Result<()> + Send + 'static,
