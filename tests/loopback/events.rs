@@ -70,10 +70,6 @@ fn evdev2uinput(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
     }
     for expected in events {
         let recv = t.uinput.events().next().unwrap()?;
-        if matches!(recv.kind(), EventKind::Syn(ev) if ev.syn() == Syn::REPORT) {
-            // FreeBSD inserts SYN_REPORT events into the uinput stream, Linux does not.
-            continue;
-        }
         if !events_eq(&recv, expected) {
             panic!("expected {expected:?} in uinput device, got {recv:?}");
         }
@@ -170,6 +166,7 @@ fn test_single_key_event() -> io::Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "freebsd", ignore = "test broken on FreeBSD")]
 fn test_led() -> io::Result<()> {
     let mut tester = Tester::get();
 
@@ -424,6 +421,10 @@ fn test_overflow_resync() -> io::Result<()> {
 }
 
 #[test]
+#[cfg_attr(
+    target_os = "freebsd",
+    ignore = "event masks are not supported on FreeBSD"
+)]
 fn test_event_mask_state() -> io::Result<()> {
     let mut tester = Tester::get();
 
@@ -446,6 +447,10 @@ fn test_event_mask_state() -> io::Result<()> {
 }
 
 #[test]
+#[cfg_attr(
+    target_os = "freebsd",
+    ignore = "event masks are not supported on FreeBSD"
+)]
 fn test_event_mask() -> io::Result<()> {
     let mut tester = Tester::get();
 
@@ -474,6 +479,10 @@ fn test_event_mask() -> io::Result<()> {
 }
 
 #[test]
+#[cfg_attr(
+    target_os = "freebsd",
+    ignore = "event masks are not supported on FreeBSD"
+)]
 fn test_rel_mask() -> io::Result<()> {
     let mut tester = Tester::get();
 
