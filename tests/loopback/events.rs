@@ -70,6 +70,10 @@ fn evdev2uinput(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
     }
     for expected in events {
         let recv = t.uinput.events().next().unwrap()?;
+        if matches!(recv.kind(), EventKind::Syn(ev) if ev.syn() == Syn::REPORT) {
+            // FreeBSD inserts SYN_REPORT events into the uinput stream, Linux does not.
+            continue;
+        }
         if !events_eq(&recv, expected) {
             panic!("expected {expected:?} in uinput device, got {recv:?}");
         }
