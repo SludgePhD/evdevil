@@ -82,14 +82,14 @@ impl AbsSetup {
 ///
 /// Returned by [`UinputDevice::builder`].
 pub struct Builder {
-    file: File, // handle to `/dev/uinput`
+    device: UinputDevice, // handle to `/dev/uinput`
     setup: uinput_setup,
 }
 
 impl fmt::Debug for Builder {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Builder")
-            .field("file", &self.file)
+            .field("file", &self.device.file)
             .field("input_id", &InputId(self.setup.id))
             .field("ff_effects_max", &self.setup.ff_effects_max)
             .finish()
@@ -99,13 +99,14 @@ impl fmt::Debug for Builder {
 impl Builder {
     fn new() -> io::Result<Self> {
         let file = File::options().read(true).write(true).open("/dev/uinput")?;
+        let device = UinputDevice { file };
         unsafe {
             let mut version = 0;
-            UI_GET_VERSION.ioctl(&file, &mut version)?;
+            device.ioctl("UI_GET_VERSION", UI_GET_VERSION, &mut version)?;
             log::debug!("opened /dev/uinput; version={version:#x}");
         }
         Ok(Self {
-            file,
+            device,
             setup: unsafe { mem::zeroed() },
         })
     }
@@ -134,7 +135,8 @@ impl Builder {
     /// It is typically easier to use [`Builder::with_phys`] instead.
     pub fn with_phys_cstr(self, path: &CStr) -> io::Result<Self> {
         unsafe {
-            UI_SET_PHYS.ioctl(&self.file, path.as_ptr().cast())?;
+            self.device
+                .ioctl("UI_SET_PHYS", UI_SET_PHYS, path.as_ptr().cast())?;
         }
 
         Ok(self)
@@ -146,7 +148,8 @@ impl Builder {
     pub fn with_props(self, props: impl IntoIterator<Item = InputProp>) -> io::Result<Self> {
         for prop in props {
             unsafe {
-                UI_SET_PROPBIT.ioctl(&self.file, prop.0.into())?;
+                self.device
+                    .ioctl("UI_SET_PROPBIT", UI_SET_PROPBIT, prop.0.into())?;
             }
         }
         Ok(self)
@@ -155,6 +158,7 @@ impl Builder {
     /// Enables the given list of [`Key`]s to be reported by the device.
     pub fn with_keys(self, keys: impl IntoIterator<Item = Key>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_KEYBIT",
             UI_SET_KEYBIT,
             EventType::KEY,
             keys.into_iter().map(|v| v.raw().into()),
@@ -165,6 +169,7 @@ impl Builder {
     /// Enables the given list of [`Rel`]ative axes to be reported by the device.
     pub fn with_rel_axes(self, rel: impl IntoIterator<Item = Rel>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_RELBIT",
             UI_SET_RELBIT,
             EventType::REL,
             rel.into_iter().map(|v| v.raw().into()),
@@ -175,6 +180,7 @@ impl Builder {
     /// Enables the given list of [`Misc`] events to be reported by the device.
     pub fn with_misc(self, misc: impl IntoIterator<Item = Misc>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_MSCBIT",
             UI_SET_MSCBIT,
             EventType::MSC,
             misc.into_iter().map(|v| v.raw().into()),
@@ -188,6 +194,7 @@ impl Builder {
     /// event to the stream.
     pub fn with_leds(self, leds: impl IntoIterator<Item = Led>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_LEDBIT",
             UI_SET_LEDBIT,
             EventType::LED,
             leds.into_iter().map(|v| v.raw().into()),
@@ -201,6 +208,7 @@ impl Builder {
     /// event to the stream.
     pub fn with_sounds(self, sounds: impl IntoIterator<Item = Sound>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_SNDBIT",
             UI_SET_SNDBIT,
             EventType::SND,
             sounds.into_iter().map(|v| v.raw().into()),
@@ -211,6 +219,7 @@ impl Builder {
     /// Enables the given list of [`Switch`]es to be reported by the device.
     pub fn with_switches(self, switches: impl IntoIterator<Item = Switch>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_SWBIT",
             UI_SET_SWBIT,
             EventType::SW,
             switches.into_iter().map(|v| v.raw().into()),
@@ -226,8 +235,9 @@ impl Builder {
         self.enable_event(EventType::ABS)?;
         for setup in axes {
             unsafe {
-                UI_SET_ABSBIT.ioctl(&self.file, setup.0.code as c_int)?;
-                UI_ABS_SETUP.ioctl(&self.file, &setup.0)?;
+                self.device
+                    .ioctl("UI_SET_ABSBIT", UI_SET_ABSBIT, setup.0.code as c_int)?;
+                self.device.ioctl("UI_ABS_SETUP", UI_ABS_SETUP, &setup.0)?;
             }
         }
         Ok(self)
@@ -251,6 +261,7 @@ impl Builder {
     /// won't work.
     pub fn with_ff_features(self, feat: impl IntoIterator<Item = ff::Feature>) -> io::Result<Self> {
         self.enable_codes(
+            "UI_SET_FFBIT",
             UI_SET_FFBIT,
             EventType::FF,
             feat.into_iter().map(|v| v.0.into()),
@@ -274,6 +285,7 @@ impl Builder {
     // Will return `EINVAL` when attempting to enable a code above the maximum for that type of code.
     fn enable_codes(
         &self,
+        ioctl_name: &'static str,
         ioctl: Ioctl<c_int>,
         event: EventType,
         codes: impl IntoIterator<Item = usize>,
@@ -282,7 +294,7 @@ impl Builder {
         self.enable_event(event)?;
         for code in codes {
             unsafe {
-                ioctl.ioctl(&self.file, code as c_int)?;
+                self.device.ioctl(ioctl_name, ioctl, code as c_int)?;
             }
         }
         Ok(())
@@ -290,7 +302,8 @@ impl Builder {
 
     fn enable_event(&self, event: EventType) -> io::Result<()> {
         unsafe {
-            UI_SET_EVBIT.ioctl(&self.file, event.0 as c_int)?;
+            self.device
+                .ioctl("UI_SET_EVBIT", UI_SET_EVBIT, event.0 as c_int)?;
         }
         Ok(())
     }
@@ -329,10 +342,11 @@ impl Builder {
         }
 
         unsafe {
-            UI_DEV_SETUP.ioctl(&self.file, &self.setup)?;
-            UI_DEV_CREATE.ioctl(&self.file)?;
+            self.device
+                .ioctl("UI_DEV_SETUP", UI_DEV_SETUP, &self.setup)?;
+            UI_DEV_CREATE.ioctl(&self.device)?;
         }
-        Ok(UinputDevice { file: self.file })
+        Ok(self.device)
     }
 }
 
