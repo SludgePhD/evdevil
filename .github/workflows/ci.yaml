@@ -42,10 +42,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
           - os: ubuntu-latest
             target: i686-unknown-linux-gnu
-          - os: ubuntu-latest
-            target: x86_64-unknown-freebsd
-          - os: ubuntu-latest
-            target: i686-unknown-freebsd
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -64,6 +60,27 @@ jobs:
       run: |
         cargo build --target ${{ matrix.target }}
         cargo build --target ${{ matrix.target }} --all-features
+
+  freebsd:
+    runs-on: ubuntu-latest
+    name: Test on FreeBSD
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Test
+      id: test
+      uses: vmactions/freebsd-vm@v1.2.1
+      with:
+        sync: rsync
+        copyback: false
+        prepare: |
+          pkg install -y rustup-init
+          rustup-init -y --profile minimal
+        run: |
+          rustup target add i686-unknown-freebsd
+          rustup --version
+          rustc --version
+          cargo test --all-features
 
   ci:
     name: CI
@@ -98,7 +115,7 @@ jobs:
 
   cd:
     name: CD
-    needs: [msrv, build, ci]
+    needs: [msrv, build, ci, freebsd]
     runs-on: ubuntu-latest
 
     permissions:
