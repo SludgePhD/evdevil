@@ -1,3 +1,5 @@
+#![cfg(not(target_os = "freebsd"))] // FreeBSD does not support force-feedback (stubbed out)
+
 use std::{collections::HashSet, error::Error, io, sync::mpsc};
 
 use evdevil::{

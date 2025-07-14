@@ -149,7 +149,10 @@ impl Tester {
                 );
                 assert_eq!(self.evdev().key_repeat().unwrap(), Some(KEY_REPEAT));
                 assert_eq!(self.evdev().set_nonblocking(false).unwrap(), false);
-                assert_eq!(self.uinput.set_nonblocking(false).unwrap(), false);
+                if cfg!(target_os = "linux") {
+                    // (on FreeBSD this fails with EINVAL)
+                    assert_eq!(self.uinput.set_nonblocking(false).unwrap(), false);
+                }
                 // NB: does not check multitouch slot states, due to lack of evdevil API
             }
         }
@@ -197,7 +200,7 @@ impl Tester {
         cb: impl FnOnce(&mut UinputDevice, &mut EventReader) -> io::Result<R>,
     ) -> io::Result<R> {
         let dev = self.evdev.take().unwrap();
-        let mut reader = dev.into_reader()?;
+        let mut reader = dev.into_reader().expect("failed to create `EventReader`");
         let res = cb(&mut self.uinput, &mut reader);
         self.evdev = Some(reader.into_evdev());
         res
@@ -304,9 +307,11 @@ fn setup_uinput_device() -> io::Result<UinputDevice> {
 
     // Key repeat is set by writing `KeyRepeat` events to the stream.
     dev.writer().set_key_repeat(KEY_REPEAT)?.finish()?;
-    // The events are echoes right back at us.
-    dev.events().next().unwrap()?;
-    dev.events().next().unwrap()?;
+    // The events are echoed right back at us, but not on FreeBSD.
+    if !cfg!(target_os = "freebsd") {
+        dev.events().next().unwrap()?;
+        dev.events().next().unwrap()?;
+    }
 
     Ok(dev)
 }
@@ -323,6 +328,7 @@ fn test_device_id() -> io::Result<()> {
 }
 
 #[test]
+#[cfg_attr(target_os = "freebsd", ignore = "unsupported (always 0) on FreeBSD")]
 fn test_ff_limit() -> io::Result<()> {
     let limit = Tester::get().evdev().supported_ff_effects()?;
     assert_eq!(limit, FF_EFFECTS);
@@ -390,6 +396,7 @@ fn test_advertised_event_codes() -> io::Result<()> {
     assert_eq!(
         t.evdev().supported_events()?,
         BitSet::from_iter([
+            #[cfg(not(target_os = "freebsd"))] // FreeBSD omits the implicit SYN event
             EventType::SYN,
             EventType::KEY,
             EventType::REL,
@@ -417,8 +424,10 @@ fn test_advertised_event_codes() -> io::Result<()> {
         .collect::<Vec<_>>();
     assert_eq!(expected, actual);
 
-    assert_eq!(t.evdev().supported_ff_effects()?, FF_EFFECTS);
-    check(t.evdev().supported_ff_features()?, FF_FEATURES);
+    if !cfg!(target_os = "freebsd") {
+        assert_eq!(t.evdev().supported_ff_effects()?, FF_EFFECTS);
+        check(t.evdev().supported_ff_features()?, FF_FEATURES);
+    }
 
     Ok(())
 }

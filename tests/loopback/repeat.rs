@@ -8,6 +8,7 @@ use evdevil::{
 use crate::{KEY_REPEAT, Tester};
 
 #[test]
+#[cfg_attr(target_os = "freebsd", ignore = "events do not echo back on FreeBSD")]
 fn get_set_repeat() -> io::Result<()> {
     let t = Tester::get();
 
