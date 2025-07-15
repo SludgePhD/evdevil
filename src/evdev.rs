@@ -18,7 +18,7 @@ use std::{
 };
 
 use libc::clockid_t;
-use linux_ioctl::Ioctl;
+use uoctl::Ioctl;
 
 use crate::{
     AbsInfo, InputProp, KeyRepeat, KeymapEntry, Version,
@@ -200,6 +200,10 @@ impl Evdev {
     /// Creates a new [`Evdev`] instance that refers to the same underlying file handle.
     ///
     /// All state of the [`Evdev`] will be shared between the instances.
+    ///
+    /// **Note**: Care must be taken when using this method.
+    /// Functionality in this crate (like [`EventReader`]) may assume that no other file handle is
+    /// used to modify device state or read events from it.
     pub fn try_clone(&self) -> io::Result<Self> {
         Ok(Self {
             file: self.file.try_clone()?,

@@ -3,7 +3,7 @@
 use std::ffi::{c_char, c_int, c_uint, c_void};
 
 use libc::timeval;
-use linux_ioctl::{_IOC, _IOC_READ, _IOR, _IOW, Ioctl};
+use uoctl::{_IOC, _IOC_READ, _IOR, _IOW, _IOWINT, IOC_INOUT, Ioctl};
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -102,8 +102,6 @@ pub const fn EVIOCGPROP(len: usize) -> Ioctl<*mut c_void> {
 }
 
 pub const fn EVIOCGMTSLOTS(len: usize) -> Ioctl<*mut c_void> {
-    use linux_ioctl::IOC_INOUT;
-
     if cfg!(target_os = "freebsd") {
         _IOC(IOC_INOUT, b'E', 0x0a, len)
     } else {
@@ -139,13 +137,6 @@ pub const fn EVIOCSABS(abs: u8) -> Ioctl<*const input_absinfo> {
     _IOW(b'E', 0xc0 + abs)
 }
 
-#[cfg(target_os = "freebsd")]
-const fn _IOWINT(group: u8, nr: u8) -> Ioctl<c_int> {
-    use linux_ioctl::IOC_VOID;
-
-    _IOC(IOC_VOID, group, nr, size_of::<c_int>())
-}
-
 /// Send a force feedback effect.
 ///
 /// Takes a mutable pointer because:
@@ -158,23 +149,26 @@ const fn _IOWINT(group: u8, nr: u8) -> Ioctl<c_int> {
 /// <https://www.kernel.org/doc/html/latest/input/ff.html>
 pub const EVIOCSFF: Ioctl<*mut ff_effect> = _IOW(b'E', 0x80).cast_mut();
 /// Erase a force feedback effect.
-#[cfg(not(target_os = "freebsd"))]
-pub const EVIOCRMFF: Ioctl<c_int> = _IOW(b'E', 0x81).with_direct_arg();
-#[cfg(target_os = "freebsd")]
-pub const EVIOCRMFF: Ioctl<c_int> = _IOWINT(b'E', 0x81);
+pub const EVIOCRMFF: Ioctl<c_int> = if cfg!(target_os = "freebsd") {
+    _IOWINT(b'E', 0x81)
+} else {
+    _IOW(b'E', 0x81).with_direct_arg()
+};
 /// Report the number of FF effects that can play simultaneously.
 pub const EVIOCGEFFECTS: Ioctl<*mut c_int> = _IOR(b'E', 0x84);
 
 /// Grab/Release device.
-#[cfg(not(target_os = "freebsd"))]
-pub const EVIOCGRAB: Ioctl<c_int> = _IOW(b'E', 0x90).with_direct_arg();
-#[cfg(target_os = "freebsd")]
-pub const EVIOCGRAB: Ioctl<c_int> = _IOWINT(b'E', 0x90);
+pub const EVIOCGRAB: Ioctl<c_int> = if cfg!(target_os = "freebsd") {
+    _IOWINT(b'E', 0x90)
+} else {
+    _IOW(b'E', 0x90).with_direct_arg()
+};
 /// Revoke device access.
-#[cfg(not(target_os = "freebsd"))]
-pub const EVIOCREVOKE: Ioctl<c_int> = _IOW(b'E', 0x91).with_direct_arg();
-#[cfg(target_os = "freebsd")]
-pub const EVIOCREVOKE: Ioctl<c_int> = _IOWINT(b'E', 0x91);
+pub const EVIOCREVOKE: Ioctl<c_int> = if cfg!(target_os = "freebsd") {
+    _IOWINT(b'E', 0x91)
+} else {
+    _IOW(b'E', 0x91).with_direct_arg()
+};
 
 /// Get event mask.
 pub const EVIOCGMASK: Ioctl<*mut input_mask> = _IOR(b'E', 0x92);

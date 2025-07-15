@@ -163,10 +163,10 @@ dependencies = [
  "csv",
  "env_logger",
  "libc",
- "linux-ioctl",
  "log",
  "postcard",
  "serde",
+ "uoctl",
 ]
 
 [[package]]
@@ -233,15 +233,6 @@ name = "libc"
 version = "0.2.172"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d750af042f7ef4f724306de029d18836c26c1765a54a6a3f094cbd23a7267ffa"
-
-[[package]]
-name = "linux-ioctl"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "543f92dc2a5109c480df389ffbc132a8a72f5be63b52adf0c0a5d41f5a0852d6"
-dependencies = [
- "libc",
-]
 
 [[package]]
 name = "lock_api"
@@ -424,6 +415,15 @@ name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+
+[[package]]
+name = "uoctl"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82a1984060a018034bd16642b1c25a2178cf211c3930abb0099f01e995b38eeb"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "utf8parse"

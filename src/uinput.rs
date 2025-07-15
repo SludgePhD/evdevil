@@ -20,7 +20,7 @@ use std::{
     time::Instant,
 };
 
-use linux_ioctl::Ioctl;
+use uoctl::Ioctl;
 
 use crate::{
     AbsInfo, InputId, InputProp, KeyRepeat, Slot,

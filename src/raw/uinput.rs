@@ -4,7 +4,7 @@
 
 use std::ffi::{c_char, c_int, c_uint};
 
-use linux_ioctl::{_IO, _IOC, _IOC_READ, _IOR, _IOW, _IOWR, Ioctl};
+use uoctl::{_IO, _IOC, _IOC_READ, _IOR, _IOW, _IOWR, Ioctl};
 
 use super::input::{ff_effect, input_absinfo, input_id};
 
@@ -52,13 +52,9 @@ pub const UI_ABS_SETUP: Ioctl<*const uinput_abs_setup> = _IOW(UINPUT_IOCTL_BASE,
 
 #[cfg(target_os = "freebsd")]
 mod ioctls {
-    use linux_ioctl::IOC_VOID;
+    use uoctl::_IOWINT;
 
     use super::*;
-
-    const fn _IOWINT(group: u8, nr: u8) -> Ioctl<c_int> {
-        _IOC(IOC_VOID, group, nr, size_of::<c_int>())
-    }
 
     pub const UI_SET_EVBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 100);
     pub const UI_SET_KEYBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 101);
@@ -68,7 +64,7 @@ mod ioctls {
     pub const UI_SET_LEDBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 105);
     pub const UI_SET_SNDBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 106);
     pub const UI_SET_FFBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 107);
-    pub const UI_SET_PHYS: Ioctl<*const c_char> = _IO(UINPUT_IOCTL_BASE, 108).with_arg();
+    pub const UI_SET_PHYS: Ioctl<*const c_char> = _IO(UINPUT_IOCTL_BASE, 108).cast_arg();
     pub const UI_SET_SWBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 109);
     pub const UI_SET_PROPBIT: Ioctl<c_int> = _IOWINT(UINPUT_IOCTL_BASE, 110);
 }
