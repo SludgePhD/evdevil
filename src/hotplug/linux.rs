@@ -12,7 +12,7 @@ use std::{
 use libc::{
     AF_NETLINK, CMSG_DATA, CMSG_FIRSTHDR, CMSG_SPACE, NETLINK_KOBJECT_UEVENT, SCM_CREDENTIALS,
     SO_PASSCRED, SOCK_CLOEXEC, SOCK_DGRAM, SOL_SOCKET, bind, iovec, msghdr, recvmsg, sa_family_t,
-    setsockopt, sockaddr, sockaddr_nl, socket, socklen_t, ssize_t, ucred,
+    setsockopt, sockaddr_nl, socket, socklen_t, ssize_t, ucred,
 };
 
 use crate::Evdev;
@@ -83,7 +83,7 @@ impl Impl {
             addr.nl_groups = group as _;
             cvt(bind(
                 fd.as_raw_fd(),
-                &addr as *const _ as *const sockaddr,
+                (&raw const addr).cast(),
                 size_of_val(&addr) as socklen_t,
             ))?;
 

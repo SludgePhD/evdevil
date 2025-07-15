@@ -13,8 +13,13 @@ mod linux;
 #[cfg(target_os = "linux")]
 use linux::Impl;
 
+#[cfg(target_os = "freebsd")]
+mod freebsd;
+#[cfg(target_os = "freebsd")]
+use freebsd::Impl;
+
 mod fallback;
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "freebsd")))]
 use fallback::Impl;
 
 use std::{
