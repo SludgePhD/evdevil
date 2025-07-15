@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+
+- Update from `linux-ioctl` to `uoctl` 1.0.
+
 ## v0.2.2
 
 - Support FreeBSD, and test it in CI.
