@@ -6,8 +6,9 @@ This library provides an interface to the Linux and FreeBSD input device subsyst
 
 - Ergonomic Rusty API designed for stability.
 - Exposes almost every `evdev` and `uinput` feature, including force-feedback and multitouch.
-- Hotplug event support (Linux-only).
+- Device Hotplug support.
 - Light on dependencies.
+- FreeBSD compatibility.
 
 ## Rust Support
 

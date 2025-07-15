@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.2
+
+- Support FreeBSD, and test it in CI.
+- Improve error messages when some `ioctl`s fail.
+
 ## v0.2.1
 
 ### Fixes
