@@ -39,21 +39,23 @@ pub fn block_until_readable(fd: RawFd) -> io::Result<()> {
 }
 
 pub fn set_nonblocking(fd: RawFd, nonblocking: bool) -> io::Result<bool> {
-    let mut flags = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
+    let flags = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_GETFL) };
     if flags == -1 {
         return Err(io::Error::last_os_error());
     }
 
     let was_nonblocking = flags & libc::O_NONBLOCK != 0;
-    if nonblocking {
-        flags |= libc::O_NONBLOCK;
+    let new_flags = if nonblocking {
+        flags | libc::O_NONBLOCK
     } else {
-        flags &= !libc::O_NONBLOCK;
-    }
+        flags & !libc::O_NONBLOCK
+    };
 
-    let ret = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, flags) };
-    if ret == -1 {
-        return Err(io::Error::last_os_error());
+    if new_flags != flags {
+        let ret = unsafe { libc::fcntl(fd.as_raw_fd(), libc::F_SETFL, new_flags) };
+        if ret == -1 {
+            return Err(io::Error::last_os_error());
+        }
     }
     Ok(was_nonblocking)
 }
