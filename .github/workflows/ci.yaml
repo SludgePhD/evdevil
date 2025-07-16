@@ -31,7 +31,9 @@ jobs:
       run: cargo install sludge-cicd --debug
 
     - name: Run CI/CD
-      run: sludge-cicd --all-features
+      run: sludge-cicd
+      env:
+        CICD_SKIP_DOCS: 1
 
   build:
     name: Build only
@@ -59,7 +61,8 @@ jobs:
     - name: Build the library
       run: |
         cargo build --target ${{ matrix.target }}
-        cargo build --target ${{ matrix.target }} --all-features
+        cargo build --target ${{ matrix.target }} --features tokio
+        cargo build --target ${{ matrix.target }} --features async-io
 
   freebsd:
     runs-on: ubuntu-latest
@@ -80,7 +83,7 @@ jobs:
           rustup target add i686-unknown-freebsd
           rustup --version
           rustc --version
-          cargo test --all-features
+          cargo test
 
   ci:
     name: CI
@@ -111,7 +114,9 @@ jobs:
       run: cargo install sludge-cicd --debug
 
     - name: Run CI
-      run: sludge-cicd --target ${{ matrix.target }} --all-features
+      run: sludge-cicd --target ${{ matrix.target }}
+      env:
+        CICD_SKIP_DOCS: 1
 
   cd:
     name: CD
@@ -136,7 +141,7 @@ jobs:
       run: cargo install sludge-cicd --debug
 
     - name: Run CI/CD
-      run: sludge-cicd --all-features
+      run: sludge-cicd --features serde,tokio  # features for the docs build
       env:
         CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
