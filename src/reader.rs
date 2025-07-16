@@ -1092,6 +1092,14 @@ impl Report {
     pub fn iter(&self) -> ReportIter<'_> {
         self.into_iter()
     }
+
+    /// Returns the number of [`InputEvent`]s in this [`Report`].
+    ///
+    /// Since [`Report`]s are always terminated with a [`Syn::REPORT`] event, they always have at
+    /// least one event in them, so this method will never return 0.
+    pub fn len(&self) -> usize {
+        *self.range.end() - *self.range.start() + 1
+    }
 }
 
 impl<'a> IntoIterator for &'a Report {
