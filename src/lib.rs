@@ -7,8 +7,8 @@
 #[macro_use]
 mod macros;
 
-#[doc = include_str!("../README.md")]
-mod readme {}
+#[cfg(test)]
+mod test;
 
 mod abs_info;
 mod batch;
@@ -38,6 +38,9 @@ pub use keymap_entry::{KeymapEntry, Scancode};
 pub use reader::EventReader;
 pub use slot::Slot;
 pub use version::Version;
+
+#[doc = include_str!("../README.md")]
+mod readme {}
 
 #[cfg(test)]
 mod tests {

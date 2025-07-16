@@ -1,5 +1,11 @@
 //! A convenient API for robustly reading device events.
 
+mod r#async;
+
+#[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
+#[cfg(any(feature = "tokio", feature = "async-io"))]
+pub use r#async::{AsyncEvents, AsyncReports};
+
 #[cfg(test)]
 mod tests;
 
@@ -928,6 +934,28 @@ impl EventReader {
     /// this.
     pub fn reports(&mut self) -> Reports<'_> {
         Reports(self)
+    }
+
+    /// Returns an async iterator over incoming events.
+    ///
+    /// Events read from the iterator will automatically update the state of the [`EventReader`].
+    ///
+    /// The underlying device will be put in non-blocking mode while the returned [`AsyncEvents`]
+    /// is alive (if it isn't already).
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
+    #[cfg(any(feature = "tokio", feature = "async-io"))]
+    pub fn async_events(&mut self) -> io::Result<AsyncEvents<'_>> {
+        AsyncEvents::new(self)
+    }
+
+    /// Returns an async iterator over incoming device reports.
+    ///
+    /// The underlying device will be put in non-blocking mode while the returned [`AsyncReports`]
+    /// is alive (if it isn't already).
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
+    #[cfg(any(feature = "tokio", feature = "async-io"))]
+    pub fn async_reports(&mut self) -> io::Result<AsyncReports<'_>> {
+        AsyncReports::new(self)
     }
 
     fn next_report(&mut self) -> io::Result<Report> {
