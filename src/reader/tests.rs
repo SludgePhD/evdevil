@@ -1,6 +1,9 @@
 use std::{cmp::min, time::Duration};
 
-use crate::event::{Rel, RelEvent};
+use crate::{
+    event::{Rel, RelEvent},
+    test::check_events,
+};
 
 use super::*;
 
@@ -49,31 +52,6 @@ impl EventReaderTest {
     }
 }
 
-fn events_eq(recv: &InputEvent, expected: &InputEvent) -> bool {
-    if recv.event_type() != expected.event_type() || recv.raw_code() != expected.raw_code() {
-        return false;
-    }
-
-    // Value is ignored for SYN events
-    if recv.event_type() != EventType::SYN && recv.raw_value() != expected.raw_value() {
-        return false;
-    }
-    true
-}
-
-#[track_caller]
-fn check_events(actual: &[InputEvent], expected: &[InputEvent]) {
-    assert_eq!(
-        actual.len(),
-        expected.len(),
-        "expected {} events, got {actual:?}",
-        expected.len()
-    );
-    if !zip(actual.iter(), expected.iter()).all(|(a, b)| events_eq(a, b)) {
-        panic!("expected {expected:?}, got {actual:?}");
-    }
-}
-
 #[test]
 fn shared_reports() -> io::Result<()> {
     let mut reader = EventReaderTest::new();
@@ -91,9 +69,10 @@ fn shared_reports() -> io::Result<()> {
             report_ptr, queue_ptr,
             "queue should not be cloned for a single report"
         );
+        assert_eq!(report.len(), 2);
         check_events(
-            &report.into_iter().collect::<Vec<_>>(),
-            &[RelEvent::new(Rel::DIAL, 0).into(), Syn::REPORT.into()],
+            report,
+            [RelEvent::new(Rel::DIAL, 0).into(), Syn::REPORT.into()],
         );
     }
 
@@ -122,12 +101,12 @@ fn shared_reports() -> io::Result<()> {
         );
 
         check_events(
-            &report.into_iter().collect::<Vec<_>>(),
-            &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
+            report,
+            [RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
         );
         check_events(
-            &report2.into_iter().collect::<Vec<_>>(),
-            &[RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
+            report2,
+            [RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
         );
     }
 
@@ -174,7 +153,7 @@ fn check_mt_resync(mut old: MtStorage, new: MtStorage, events: &[InputEvent]) {
     assert_eq!(old, new);
 
     let actual = Vec::from(queue);
-    check_events(&actual, events);
+    check_events(actual, events.iter().copied());
 }
 
 #[test]
