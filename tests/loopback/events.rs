@@ -515,14 +515,11 @@ fn reader_reports_clear() -> io::Result<()> {
     tester.evdev().set_nonblocking(true)?;
     tester.with_reader(|uinput, reader| {
         uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-        let report = reader
-            .reports()
-            .next()
-            .unwrap()?
-            .into_iter()
-            .collect::<Vec<InputEvent>>();
+        let report = reader.reports().next().unwrap()?;
+        let events = report.iter().collect::<Vec<InputEvent>>();
+        assert_eq!(report.len(), events.len());
         check_events(
-            &report,
+            &events,
             &[RelEvent::new(Rel::DIAL, 1).into(), Syn::REPORT.into()],
         );
 
@@ -564,4 +561,42 @@ fn reader_reports_collect() -> io::Result<()> {
     })?;
     tester.evdev().set_nonblocking(false)?;
     Ok(())
+}
+
+/// Tests that we can create and drop the `Events` iterator without affecting the `EventReader`.
+#[test]
+fn reader_events_stateless() -> io::Result<()> {
+    let mut tester = Tester::get();
+
+    tester.with_reader(|uinput, reader| {
+        reader.evdev().set_nonblocking(true)?;
+        let mut events = reader.events();
+
+        let next = events.next();
+        assert!(next.is_none(), "{next:?}");
+
+        uinput.write(&[
+            RelEvent::new(Rel::DIAL, 1).into(),
+            RelEvent::new(Rel::DIAL, 2).into(),
+        ])?;
+
+        // `Events` instance was created before the events were written.
+        check_events(
+            &[events.next().expect("expected `REL_DIAL`")?],
+            &[RelEvent::new(Rel::DIAL, 1).into()],
+        );
+
+        let mut events = reader.events();
+        check_events(
+            &[events.next().expect("expected `REL_DIAL`")?],
+            &[RelEvent::new(Rel::DIAL, 2).into()],
+        );
+        check_events(
+            &[events.next().expect("expected `SYN_REPORT`")?],
+            &[Syn::REPORT.into()],
+        );
+
+        reader.evdev().set_nonblocking(false)?;
+        Ok(())
+    })
 }
