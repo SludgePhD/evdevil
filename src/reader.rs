@@ -557,6 +557,11 @@ impl Impl {
             range: skip..=skip + end,
         })
     }
+
+    /// Looks for the next `SYN_REPORT` in the queue and returns the number of events up to the
+    /// `SYN_REPORT`.
+    ///
+    /// If there's no `SYN_REPORT`, this will read more events from the device.
     fn next_report_len(&mut self, iface: &mut impl Interface) -> io::Result<usize> {
         self.skip();
 
@@ -958,6 +963,7 @@ impl<'a> IntoIterator for &'a mut EventReader {
     type Item = io::Result<InputEvent>;
     type IntoIter = Events<'a>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.events()
     }
@@ -967,6 +973,7 @@ impl IntoIterator for EventReader {
     type Item = io::Result<InputEvent>;
     type IntoIter = IntoEvents;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IntoEvents {
             reader: self,
@@ -981,6 +988,10 @@ impl IntoIterator for EventReader {
 #[derive(Debug)]
 pub struct Events<'a> {
     reader: &'a mut EventReader,
+    /// Number of events remaining in the next report.
+    ///
+    /// As long as this is >0, we can pull events from the queue without checking whether they are
+    /// part of a committed report (by looking for `SYN_REPORT`).
     remaining: usize,
 }
 
@@ -1031,6 +1042,7 @@ impl Iterator for IntoEvents {
         Some(Ok(self.reader.next_event()))
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         (self.remaining, None)
     }
@@ -1086,6 +1098,7 @@ impl<'a> IntoIterator for &'a Report {
     type Item = InputEvent;
     type IntoIter = ReportIter<'a>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         ReportIter {
             queue: &self.queue,
@@ -1098,6 +1111,7 @@ impl IntoIterator for Report {
     type Item = InputEvent;
     type IntoIter = ReportIntoIter;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         ReportIntoIter {
             queue: self.queue,
@@ -1125,6 +1139,7 @@ impl Iterator for ReportIntoIter {
         Some(self.queue[i])
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.range.size_hint()
     }
@@ -1151,6 +1166,7 @@ impl<'a> Iterator for ReportIter<'a> {
         Some(self.queue[i])
     }
 
+    #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.range.size_hint()
     }
