@@ -1,6 +1,9 @@
 use std::{
     io,
-    os::{fd::AsRawFd, unix::prelude::RawFd},
+    os::{
+        fd::{AsRawFd, IntoRawFd},
+        unix::prelude::RawFd,
+    },
 };
 
 use crate::Evdev;
@@ -14,6 +17,12 @@ pub struct Impl {
 
 impl AsRawFd for Impl {
     fn as_raw_fd(&self) -> RawFd {
+        unreachable!("this type cannot be constructed")
+    }
+}
+
+impl IntoRawFd for Impl {
+    fn into_raw_fd(self) -> RawFd {
         unreachable!("this type cannot be constructed")
     }
 }

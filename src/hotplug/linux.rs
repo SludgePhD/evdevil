@@ -3,7 +3,7 @@ use std::{
     ffi::{OsStr, c_int, c_uint},
     io, mem,
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd},
+        fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd},
         unix::{ffi::OsStrExt, prelude::RawFd},
     },
     path::Path,
@@ -105,6 +105,13 @@ impl AsRawFd for Impl {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.netlink_socket.as_raw_fd()
+    }
+}
+
+impl IntoRawFd for Impl {
+    #[inline]
+    fn into_raw_fd(self) -> RawFd {
+        self.netlink_socket.into_raw_fd()
     }
 }
 

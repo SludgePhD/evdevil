@@ -3,7 +3,7 @@ use std::{
     io,
     mem::{self, offset_of},
     os::{
-        fd::{AsRawFd, FromRawFd, OwnedFd, RawFd},
+        fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
         unix::ffi::OsStrExt,
     },
     path::PathBuf,
@@ -45,6 +45,13 @@ impl AsRawFd for Impl {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.fd.as_raw_fd()
+    }
+}
+
+impl IntoRawFd for Impl {
+    #[inline]
+    fn into_raw_fd(self) -> RawFd {
+        self.fd.into_raw_fd()
     }
 }
 

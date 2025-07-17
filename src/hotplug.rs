@@ -24,12 +24,15 @@ use fallback::Impl;
 
 use std::{
     fmt, io,
-    os::fd::{AsRawFd, RawFd},
+    os::{
+        fd::{AsFd, AsRawFd, IntoRawFd, RawFd},
+        unix::prelude::BorrowedFd,
+    },
 };
 
 use crate::{Evdev, util::set_nonblocking};
 
-trait HotplugImpl: Sized + AsRawFd {
+trait HotplugImpl: Sized + AsRawFd + IntoRawFd {
     fn open() -> io::Result<Self>;
     fn read(&self) -> io::Result<Evdev>;
 }
@@ -53,6 +56,20 @@ impl AsRawFd for HotplugMonitor {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
         self.imp.as_raw_fd()
+    }
+}
+
+impl IntoRawFd for HotplugMonitor {
+    #[inline]
+    fn into_raw_fd(self) -> RawFd {
+        self.imp.into_raw_fd()
+    }
+}
+
+impl AsFd for HotplugMonitor {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }
     }
 }
 
