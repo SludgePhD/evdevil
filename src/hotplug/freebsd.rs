@@ -7,6 +7,8 @@ use std::{
         unix::ffi::OsStrExt,
     },
     path::PathBuf,
+    thread,
+    time::Duration,
 };
 
 use libc::{AF_UNIX, SOCK_CLOEXEC, SOCK_SEQPACKET, connect, recv, sockaddr_un, socket, ssize_t};
@@ -67,6 +69,13 @@ impl super::HotplugImpl for Impl {
                 (&raw const addr).cast(),
                 mem::size_of_val(&addr) as _,
             ))?;
+
+            // `devd` in FreeBSD 14 has a race condition where it will send out device events
+            // *before* accepting new incoming client connections, which can cause us to miss an
+            // event if we're immediately creating a `UinputDevice` after the `HotplugMonitor`
+            // (which the test suite does).
+            // Sleeping for a bit here largely works around that.
+            thread::sleep(Duration::from_millis(25));
 
             Ok(Self { fd })
         }
