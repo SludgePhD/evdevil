@@ -133,7 +133,15 @@ impl Evdev {
     fn open_unchecked(path: PathBuf) -> io::Result<Self> {
         let now = Instant::now();
 
-        let file = Self::try_open(&path)?;
+        let file = match Self::try_open(&path) {
+            Ok(file) => file,
+            Err(e) => {
+                return Err(io::Error::new(
+                    e.kind(),
+                    format!("failed to open '{}': {e}", path.display()),
+                ));
+            }
+        };
         let this = Self { file, path };
         let version = this.driver_version()?;
         log::debug!(
