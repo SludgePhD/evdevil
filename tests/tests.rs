@@ -1,9 +1,13 @@
+//! Runs unit tests with different feature flags.
+//!
+//! Some tests will adapt to the selected async runtime automatically. This test exercises them.
+
 use std::{env, process::Command};
 
 fn test(args: &[&str]) {
     let cargo = env::var_os("CARGO").expect("`CARGO` isn't set");
     let status = Command::new(cargo)
-        .args(&["test", "-p", "evdevil", "--lib"])
+        .args(&["test", "-p", "evdevil", "--lib"]) // avoid infinite recursion
         .args(args)
         .status()
         .unwrap();
