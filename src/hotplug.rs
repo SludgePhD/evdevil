@@ -8,6 +8,13 @@
 //!
 //! [`hotplug::enumerate`]: crate::hotplug::enumerate
 
+#[cfg_attr(docsrs, doc(cfg(feature = "tokio", feature = "async-io")))]
+#[cfg(any(doc, feature = "tokio", feature = "async-io"))]
+mod r#async;
+
+#[cfg(any(doc, feature = "tokio", feature = "async-io"))]
+pub use r#async::AsyncIter;
+
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -82,7 +89,7 @@ impl HotplugMonitor {
     /// Callers should degrade gracefully, by using only the currently plugged-in devices and not
     /// supporting hotplug functionality.
     ///
-    /// It may fail with other types of errors if connecting to the system's hotplug mechanism
+    /// It may also fail with other types of errors if connecting to the system's hotplug mechanism
     /// fails.
     pub fn new() -> io::Result<Self> {
         Ok(Self { imp: Impl::open()? })
@@ -95,6 +102,23 @@ impl HotplugMonitor {
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<bool> {
         set_nonblocking(self.as_raw_fd(), nonblocking)
     }
+
+    /// Returns an iterator that yields hotplug events.
+    pub fn iter(&self) -> Iter<'_> {
+        Iter(self)
+    }
+
+    /// Returns an asynchronous iterator that yields hotplug events.
+    ///
+    /// Requires either the `"tokio"` or the `"async-io"` feature to be enabled.
+    ///
+    /// The [`HotplugMonitor`] will be put in non-blocking mode while the [`AsyncIter`] is alive
+    /// (if it isn't already).
+    #[cfg_attr(docsrs, doc(cfg(any(doc, feature = "tokio", feature = "async-io"))))]
+    #[cfg(any(doc, feature = "tokio", feature = "async-io"))]
+    pub fn async_iter(&self) -> io::Result<AsyncIter<'_>> {
+        AsyncIter::new(self)
+    }
 }
 
 impl Iterator for HotplugMonitor {
@@ -102,6 +126,28 @@ impl Iterator for HotplugMonitor {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.imp.read() {
+            Ok(dev) => Some(Ok(dev)),
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
+            Err(e) => Some(Err(e)),
+        }
+    }
+}
+
+/// An [`Iterator`] over hotplug events.
+///
+/// Returned by [`HotplugMonitor::iter`].
+///
+/// If [`HotplugMonitor::set_nonblocking`] has been used to put the [`HotplugMonitor`] in
+/// non-blocking mode, this iterator will yield [`None`] when no events are pending.
+/// Otherwise, it will block until a hotplug event arrives.
+#[derive(Debug)]
+pub struct Iter<'a>(&'a HotplugMonitor);
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = io::Result<Evdev>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.imp.read() {
             Ok(dev) => Some(Ok(dev)),
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
             Err(e) => Some(Err(e)),

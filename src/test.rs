@@ -28,9 +28,17 @@ pub fn pair(b: impl FnOnce(Builder) -> io::Result<Builder>) -> io::Result<(Uinpu
     let hotplug = HotplugMonitor::new()?;
     let uinput = b(UinputDevice::builder()?)?.build(&name)?;
     for res in hotplug {
-        let evdev = res?;
-        if evdev.name()? == name {
-            return Ok((uinput, evdev));
+        match res {
+            Ok(evdev) => {
+                if evdev.name()? == name {
+                    return Ok((uinput, evdev));
+                }
+            }
+            Err(e) => {
+                // This can happen when an unrelated device (likely created by another test) shows
+                // up first, and disappears before we can check its name.
+                log::warn!("got error while waiting for '{name}' to appear: {e}");
+            }
         }
     }
     unreachable!("hotplug event stream should be infinite")

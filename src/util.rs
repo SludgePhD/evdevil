@@ -4,6 +4,8 @@ use std::{
     os::fd::{AsRawFd, RawFd},
 };
 
+pub mod r#async;
+
 /// Uses `poll(2)` to determine whether reading from `fd` is possible without blocking.
 pub fn is_readable(fd: RawFd) -> io::Result<bool> {
     let mut poll = libc::pollfd {
