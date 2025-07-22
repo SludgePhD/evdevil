@@ -77,49 +77,43 @@ impl<'a> AsyncEvents<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{io, pin::pin};
+    use std::io;
 
     use crate::{
         event::{Rel, RelEvent, Syn},
-        test::{AssertPending, check_events, pair},
-        util::r#async::with_runtime,
+        test::{check_events, pair},
+        util::r#async::test::AsyncTest,
     };
 
     #[test]
     fn smoke() -> io::Result<()> {
-        with_runtime(|rt| {
-            let (uinput, evdev) = pair(|b| b.with_rel_axes([Rel::DIAL]))?;
-            let mut reader = evdev.into_reader()?;
-            let mut events = reader.async_events()?;
+        let (uinput, evdev) = pair(|b| b.with_rel_axes([Rel::DIAL]))?;
+        let mut reader = evdev.into_reader()?;
 
-            {
-                let mut fut = pin!(events.next_event());
-                rt.block_on(AssertPending(fut.as_mut()));
+        {
+            let event = AsyncTest::new(async { reader.async_events()?.next_event().await }, || {
+                uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])
+            })
+            .run()?;
 
-                uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+            check_events([event], [RelEvent::new(Rel::DIAL, 1).into()]);
+        }
 
-                let event = rt.block_on(fut)?;
-                check_events([event], [RelEvent::new(Rel::DIAL, 1).into()]);
-            }
+        let ev = reader.events().next().unwrap()?;
+        check_events([ev], [Syn::REPORT.into()]);
 
-            drop(events);
-            let ev = reader.events().next().unwrap()?;
-            check_events([ev], [Syn::REPORT.into()]);
+        let report = AsyncTest::new(
+            async { reader.async_reports()?.next_report().await },
+            || uinput.write(&[RelEvent::new(Rel::DIAL, 2).into()]),
+        )
+        .run()?;
 
-            let mut reports = reader.async_reports()?;
-            let mut fut = pin!(reports.next_report());
-            rt.block_on(AssertPending(fut.as_mut()));
+        assert_eq!(report.len(), 2);
+        check_events(
+            report,
+            [RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
+        );
 
-            uinput.write(&[RelEvent::new(Rel::DIAL, 2).into()])?;
-
-            let report = rt.block_on(fut)?;
-            assert_eq!(report.len(), 2);
-            check_events(
-                report,
-                [RelEvent::new(Rel::DIAL, 2).into(), Syn::REPORT.into()],
-            );
-
-            Ok(())
-        })
+        Ok(())
     }
 }

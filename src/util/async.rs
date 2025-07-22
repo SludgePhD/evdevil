@@ -116,8 +116,9 @@ use asyncio_impl::*;
 #[cfg(feature = "async-io")]
 mod asyncio_impl {
     use std::{
-        io,
+        future, io,
         os::fd::{BorrowedFd, RawFd},
+        pin::pin,
         task::Poll,
     };
 
@@ -129,7 +130,7 @@ mod asyncio_impl {
     impl Impl {
         pub fn new(fd: RawFd) -> io::Result<Self> {
             let fd = unsafe { BorrowedFd::borrow_raw(fd) };
-            Async::new(fd).map(Self)
+            Async::new_nonblocking(fd).map(Self)
         }
 
         pub async fn asyncify<T>(
@@ -138,11 +139,31 @@ mod asyncio_impl {
         ) -> io::Result<T> {
             loop {
                 match op() {
-                    Poll::Pending => self.0.readable().await?,
+                    Poll::Pending => optimistic(self.0.readable()).await?,
                     Poll::Ready(res) => return res,
                 }
             }
         }
+    }
+
+    // This "optimization" is copied from async-io.
+    // async-io is apparently very buggy (see smol-rs/async-io#78), so it ends up being required for
+    // things to work right.
+    // Specifically, the `.readable()` future is permanently `Pending`, even after the reactor
+    // schedules the future again, so `asyncify` would just never complete.
+    async fn optimistic(fut: impl Future<Output = io::Result<()>>) -> io::Result<()> {
+        let mut polled = false;
+        let mut fut = pin!(fut);
+
+        future::poll_fn(|cx| {
+            if !polled {
+                polled = true;
+                fut.as_mut().poll(cx)
+            } else {
+                Poll::Ready(Ok(()))
+            }
+        })
+        .await
     }
 
     #[cfg(test)]
@@ -169,14 +190,95 @@ pub struct Impl;
 #[cfg(doc)]
 pub struct Runtime;
 
-/// Calls `f` with an instance of the selected async runtime.
-///
-/// Allows writing async-runtime-agnostic tests.
-///
-/// The only supported API is `runtime.block_on(future)`.
 #[cfg(test)]
-pub fn with_runtime<R>(f: impl FnOnce(&Runtime) -> io::Result<R>) -> io::Result<R> {
-    let rt = Runtime::new()?;
-    let _guard = rt.enter();
-    f(&rt)
+pub mod test {
+    use std::{fmt, future, panic::resume_unwind, pin::pin, sync::mpsc, thread};
+
+    use super::*;
+
+    pub struct AsyncTest<F, U> {
+        future: F,
+        unblocker: U,
+        allowed_polls: usize,
+    }
+
+    impl<F, U> AsyncTest<F, U> {
+        pub fn new(future: F, unblocker: U) -> Self {
+            Self {
+                future,
+                unblocker,
+                allowed_polls: 1,
+            }
+        }
+
+        /// Sets the number of allowed future polls after the `unblocker` has been run.
+        ///
+        /// By default, this is 1, expecting the future to complete immediately after the waker has
+        /// been notified.
+        /// Higher values may be needed if the API-under-test is system-global and may have to
+        /// process some irrelevant events until it becomes `Ready`.
+        pub fn allowed_polls(mut self, allowed_polls: usize) -> Self {
+            self.allowed_polls = allowed_polls;
+            self
+        }
+
+        /// Polls `future`, expecting `Poll::Pending`. Then runs `unblocker`, and expects the waker to
+        /// be invoked and the `future` to be `Poll::Ready`.
+        pub fn run<T>(self) -> io::Result<T>
+        where
+            F: Future<Output = io::Result<T>> + Send,
+            F::Output: Send,
+            U: FnOnce() -> io::Result<()>,
+            T: fmt::Debug,
+        {
+            let (sender, recv) = mpsc::sync_channel(0);
+            thread::scope(|s| {
+                let h = s.spawn(move || -> io::Result<_> {
+                    let rt = Runtime::new()?;
+                    let _guard = rt.enter();
+                    let mut fut = pin!(self.future);
+                    let mut poll_count = 0;
+
+                    rt.block_on(future::poll_fn(|cx| {
+                        if poll_count == 0 {
+                            match fut.as_mut().poll(cx) {
+                                Poll::Ready(val) => {
+                                    panic!("expected future to be `Pending`, but it is `Ready({val:?})`")
+                                }
+                                Poll::Pending => {
+                                    // Waker is now scheduled to be woken when the event of interest occurs.
+                                    println!("future is pending; scheduling wakeup");
+                                    poll_count += 1;
+                                    sender.send(()).unwrap();
+                                    return Poll::Pending;
+                                }
+                            }
+                        } else {
+                            // This is called when the `Waker` has been woken up.
+                            match fut.as_mut().poll(cx) {
+                                Poll::Ready(out) => Poll::Ready(out),
+                                Poll::Pending => {
+                                    if poll_count >= self.allowed_polls {
+                                        panic!("future still `Pending` after {poll_count} polls");
+                                    }
+                                    poll_count += 1;
+                                    Poll::Pending
+                                }
+                            }
+                        }
+                    }))
+                });
+
+                recv.recv().unwrap();
+
+                // We've been signaled to invoke `unblocker`.
+                (self.unblocker)()?;
+
+                match h.join() {
+                    Ok(res) => res,
+                    Err(payload) => resume_unwind(payload),
+                }
+            })
+        }
+    }
 }

@@ -32,29 +32,41 @@ impl<'a> AsyncIter<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{io, pin::pin};
+    use std::io;
 
-    use crate::{
-        hotplug::HotplugMonitor, test::AssertPending, uinput::UinputDevice,
-        util::r#async::with_runtime,
-    };
+    use crate::{hotplug::HotplugMonitor, uinput::UinputDevice, util::r#async::test::AsyncTest};
 
     #[test]
     fn smoke() -> io::Result<()> {
-        with_runtime(|rt| {
-            const DEVNAME: &str = "-@-rust-async-hotplug-test-@-";
+        env_logger::try_init().ok();
 
-            let mon = HotplugMonitor::new()?;
+        const DEVNAME: &str = "-@-rust-async-hotplug-test-@-";
 
-            let events = mon.async_iter()?;
-            let mut fut = pin!(events.next_event());
-            rt.block_on(AssertPending(fut.as_mut()));
+        let mon = HotplugMonitor::new()?;
 
-            let _uinput = UinputDevice::builder()?.build(DEVNAME)?;
-
-            rt.block_on(fut)?;
-
+        let mut uinput = None;
+        let fut = async {
+            // Wait for our test device to arrive:
+            loop {
+                if let Ok(evdev) = mon.async_iter()?.next_event().await {
+                    if let Ok(name) = evdev.name() {
+                        if name == DEVNAME {
+                            return Ok(evdev);
+                        }
+                    }
+                }
+            }
+        };
+        AsyncTest::new(fut, || {
+            uinput = Some(UinputDevice::builder()?.build(DEVNAME)?);
+            println!("unblocked");
             Ok(())
         })
+        // This test might take a few tries since unrelated events need to be filtered out, and
+        // unrelated messages may arrive at the socket, causing a wakeup that results in `Pending`.
+        .allowed_polls(1024)
+        .run()?;
+
+        Ok(())
     }
 }

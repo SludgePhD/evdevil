@@ -942,6 +942,8 @@ impl EventReader {
     ///
     /// The underlying device will be put in non-blocking mode while the returned [`AsyncEvents`]
     /// is alive (if it isn't already).
+    ///
+    /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
     #[cfg(any(feature = "tokio", feature = "async-io"))]
     pub fn async_events(&mut self) -> io::Result<AsyncEvents<'_>> {
@@ -952,6 +954,8 @@ impl EventReader {
     ///
     /// The underlying device will be put in non-blocking mode while the returned [`AsyncReports`]
     /// is alive (if it isn't already).
+    ///
+    /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
     #[cfg(any(feature = "tokio", feature = "async-io"))]
     pub fn async_reports(&mut self) -> io::Result<AsyncReports<'_>> {
