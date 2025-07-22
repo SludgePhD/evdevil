@@ -1,10 +1,17 @@
 //! Support for hotplug events.
 //!
-//! This module is currently Linux-specific. It uses the udev netlink socket to listen for events
-//! from a udev implementation.
+//! The recommended way to support device hotplug in applications is to use the
+//! [`hotplug::enumerate`] function, which returns an iterator over all devices that are or will be
+//! plugged into the system.
 //!
-//! The recommended way to support device hotplug is to use the [`hotplug::enumerate`] function,
-//! which returns an iterator over all devices that are or will be plugged into the system.
+//! # Platform Support
+//!
+//! Hotplug functionality is supported on Linux and FreeBSD, as follows:
+//!
+//! | OS | Details |
+//! |----|---------|
+//! | Linux | Uses the `NETLINK_KOBJECT_UEVENT` socket. Requires `udev`. |
+//! | FreeBSD | Uses `devd`'s seqpacket socket at `/var/run/devd.seqpacket.pipe`. |
 //!
 //! [`hotplug::enumerate`]: crate::hotplug::enumerate
 
@@ -114,6 +121,8 @@ impl HotplugMonitor {
     ///
     /// The [`HotplugMonitor`] will be put in non-blocking mode while the [`AsyncIter`] is alive
     /// (if it isn't already).
+    ///
+    /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(doc, feature = "tokio", feature = "async-io"))))]
     #[cfg(any(doc, feature = "tokio", feature = "async-io"))]
     pub fn async_iter(&self) -> io::Result<AsyncIter<'_>> {
