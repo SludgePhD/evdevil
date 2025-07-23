@@ -837,6 +837,12 @@ impl Evdev {
 /// **Note 2**: [`EventReader`] is not aware of event masks and may insert some synthetic events
 /// that have been disabled with the event masks. Your application should configure the masks as
 /// desired *and* actively ignore any events that it sees if it isn't interested in them.
+///
+/// # Platform Support
+///
+/// FreeBSD does not support these APIs, so they will return an error when used.
+/// Applications should degrade gracefully when that happens, since the consequence of not filtering
+/// events is merely a decrease in performance.
 impl Evdev {
     fn fetch_mask<V: BitValue>(&self, ty: EventType) -> io::Result<BitSet<V>> {
         let mut set = BitSet::<V>::new();

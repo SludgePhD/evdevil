@@ -46,8 +46,10 @@ mod tests {
 
         let mut uinput = None;
         let fut = async {
-            // Wait for our test device to arrive:
+            // Wait for our test device to arrive.
             loop {
+                // This needs to ignore errors, since devices may disappear immediately after (or
+                // even before) being opened.
                 if let Ok(evdev) = mon.async_iter()?.next_event().await {
                     if let Ok(name) = evdev.name() {
                         if name == DEVNAME {

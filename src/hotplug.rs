@@ -8,9 +8,9 @@
 //!
 //! Hotplug functionality is supported on Linux and FreeBSD, as follows:
 //!
-//! | OS | Details |
-//! |----|---------|
-//! | Linux | Uses the `NETLINK_KOBJECT_UEVENT` socket. Requires `udev`. |
+//! |   OS    | Details |
+//! |---------|---------|
+//! | Linux   | Uses the `NETLINK_KOBJECT_UEVENT` socket. Requires `udev`. |
 //! | FreeBSD | Uses `devd`'s seqpacket socket at `/var/run/devd.seqpacket.pipe`. |
 //!
 //! [`hotplug::enumerate`]: crate::hotplug::enumerate
@@ -54,6 +54,12 @@ trait HotplugImpl: Sized + AsRawFd + IntoRawFd {
 /// Monitors the system for newly plugged in input devices.
 ///
 /// This type implements [`Iterator`], which will block until the next event is received.
+///
+/// Iterating over the hotplug events will yield [`io::Result`]s that may be arbitrary
+/// [`io::Error`]s that occurred while attempting to open a device.
+/// These error may happen at any point, since devices may be removed anytime (resulting in a
+/// [`NotFound`][io::ErrorKind::NotFound] error or some other error).
+/// Applications should handle these errors non-fatally.
 pub struct HotplugMonitor {
     imp: Impl,
 }
@@ -90,14 +96,16 @@ impl AsFd for HotplugMonitor {
 impl HotplugMonitor {
     /// Creates a new [`HotplugMonitor`] and starts listening for hotplug events.
     ///
+    /// This operation is always blocking.
+    ///
     /// # Errors
     ///
     /// This will fail with [`io::ErrorKind::Unsupported`] on unsupported platforms.
-    /// Callers should degrade gracefully, by using only the currently plugged-in devices and not
-    /// supporting hotplug functionality.
-    ///
     /// It may also fail with other types of errors if connecting to the system's hotplug mechanism
     /// fails.
+    ///
+    /// Callers should degrade gracefully, by using only the currently plugged-in devices and not
+    /// supporting hotplug functionality.
     pub fn new() -> io::Result<Self> {
         Ok(Self { imp: Impl::open()? })
     }
