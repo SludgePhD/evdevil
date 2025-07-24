@@ -6,9 +6,7 @@ use std::{
     },
 };
 
-use crate::Evdev;
-
-use super::HotplugImpl;
+use super::{HotplugEvent, HotplugImpl};
 
 #[allow(dead_code)]
 pub struct Impl {
@@ -32,7 +30,7 @@ impl HotplugImpl for Impl {
         Err(io::ErrorKind::Unsupported.into())
     }
 
-    fn read(&self) -> io::Result<Evdev> {
+    fn read(&self) -> io::Result<HotplugEvent> {
         unreachable!("this type cannot be constructed")
     }
 }

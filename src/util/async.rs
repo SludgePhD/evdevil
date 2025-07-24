@@ -217,6 +217,7 @@ pub mod test {
         /// been notified.
         /// Higher values may be needed if the API-under-test is system-global and may have to
         /// process some irrelevant events until it becomes `Ready`.
+        #[expect(dead_code)]
         pub fn allowed_polls(mut self, allowed_polls: usize) -> Self {
             self.allowed_polls = allowed_polls;
             self

@@ -7,7 +7,7 @@ const DEVICE_NAME: &str = "-@-rust-hotplug-test-@-";
 fn main() -> io::Result<()> {
     env_logger::init();
 
-    let mut mon = match HotplugMonitor::new() {
+    let mon = match HotplugMonitor::new() {
         Err(e) if e.kind() == io::ErrorKind::Unsupported => {
             eprintln!("hotplug is not supported on this platform; skipping test");
             return Ok(());
@@ -26,8 +26,8 @@ fn main() -> io::Result<()> {
     loop {
         thread::sleep(Duration::from_millis(25));
 
-        for res in mon.by_ref() {
-            let dev = res?;
+        for res in &mon {
+            let dev = res?.open()?;
             let name = dev.name()?;
             if name == DEVICE_NAME {
                 println!("success! found test device at {}", dev.path().display());

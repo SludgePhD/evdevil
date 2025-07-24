@@ -24,10 +24,13 @@ pub fn pair(b: impl FnOnce(Builder) -> io::Result<Builder>) -> io::Result<(Uinpu
     let hotplug = HotplugMonitor::new()?;
     let uinput = b(UinputDevice::builder()?)?.build(&name)?;
     for res in hotplug {
+        let res = res.and_then(|ev| ev.open());
         match res {
             Ok(evdev) => {
-                if evdev.name()? == name {
-                    return Ok((uinput, evdev));
+                if let Ok(devname) = evdev.name() {
+                    if devname == name {
+                        return Ok((uinput, evdev));
+                    }
                 }
             }
             Err(e) => {

@@ -15,13 +15,6 @@
 //!
 //! [`hotplug::enumerate`]: crate::hotplug::enumerate
 
-#[cfg_attr(docsrs, doc(cfg(feature = "tokio", feature = "async-io")))]
-#[cfg(any(doc, feature = "tokio", feature = "async-io"))]
-mod r#async;
-
-#[cfg(any(doc, feature = "tokio", feature = "async-io"))]
-pub use r#async::AsyncIter;
-
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -42,18 +35,17 @@ use std::{
         fd::{AsFd, AsRawFd, IntoRawFd, RawFd},
         unix::prelude::BorrowedFd,
     },
+    path::{Path, PathBuf},
 };
 
 use crate::{Evdev, util::set_nonblocking};
 
 trait HotplugImpl: Sized + AsRawFd + IntoRawFd {
     fn open() -> io::Result<Self>;
-    fn read(&self) -> io::Result<Evdev>;
+    fn read(&self) -> io::Result<HotplugEvent>;
 }
 
 /// Monitors the system for newly plugged in input devices.
-///
-/// This type implements [`Iterator`], which will block until the next event is received.
 ///
 /// Iterating over the hotplug events will yield [`io::Result`]s that may be arbitrary
 /// [`io::Error`]s that occurred while attempting to open a device.
@@ -112,8 +104,12 @@ impl HotplugMonitor {
 
     /// Moves the socket into or out of non-blocking mode.
     ///
-    /// [`HotplugMonitor::next`] will return [`None`] when the socket is in non-blocking mode and
-    /// there are no incoming hotplug events.
+    /// [`Iter::next`] and [`IntoIter::next`] will return [`None`] when the socket is in
+    /// non-blocking mode and there are no incoming hotplug events.
+    ///
+    /// Note that the act of opening a device is always blocking, and may block for a significant
+    /// amount of time, so "non-blocking" operation only covers generation of [`HotplugEvent`]s,
+    /// not opening the device the events refer to.
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<bool> {
         set_nonblocking(self.as_raw_fd(), nonblocking)
     }
@@ -122,28 +118,44 @@ impl HotplugMonitor {
     pub fn iter(&self) -> Iter<'_> {
         Iter(self)
     }
+}
 
-    /// Returns an asynchronous iterator that yields hotplug events.
-    ///
-    /// Requires either the `"tokio"` or the `"async-io"` feature to be enabled.
-    ///
-    /// The [`HotplugMonitor`] will be put in non-blocking mode while the [`AsyncIter`] is alive
-    /// (if it isn't already).
-    ///
-    /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
-    #[cfg_attr(docsrs, doc(cfg(any(doc, feature = "tokio", feature = "async-io"))))]
-    #[cfg(any(doc, feature = "tokio", feature = "async-io"))]
-    pub fn async_iter(&self) -> io::Result<AsyncIter<'_>> {
-        AsyncIter::new(self)
+impl IntoIterator for HotplugMonitor {
+    type Item = io::Result<HotplugEvent>;
+    type IntoIter = IntoIter;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter(self)
     }
 }
 
-impl Iterator for HotplugMonitor {
-    type Item = io::Result<Evdev>;
+impl<'a> IntoIterator for &'a HotplugMonitor {
+    type Item = io::Result<HotplugEvent>;
+    type IntoIter = Iter<'a>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        Iter(self)
+    }
+}
+
+/// An owning [`Iterator`] over hotplug events.
+///
+/// Returned by [`HotplugMonitor::into_iter`].
+///
+/// If [`HotplugMonitor::set_nonblocking`] has been used to put the [`HotplugMonitor`] in
+/// non-blocking mode, this iterator will yield [`None`] when no events are pending.
+/// Otherwise, it will block until a hotplug event arrives.
+#[derive(Debug)]
+pub struct IntoIter(HotplugMonitor);
+
+impl Iterator for IntoIter {
+    type Item = io::Result<HotplugEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.imp.read() {
-            Ok(dev) => Some(Ok(dev)),
+        match self.0.imp.read() {
+            Ok(ev) => Some(Ok(ev)),
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
             Err(e) => Some(Err(e)),
         }
@@ -161,28 +173,49 @@ impl Iterator for HotplugMonitor {
 pub struct Iter<'a>(&'a HotplugMonitor);
 
 impl<'a> Iterator for Iter<'a> {
-    type Item = io::Result<Evdev>;
+    type Item = io::Result<HotplugEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.imp.read() {
-            Ok(dev) => Some(Ok(dev)),
+            Ok(ev) => Some(Ok(ev)),
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
             Err(e) => Some(Err(e)),
         }
     }
 }
 
+/// An event emitted by the [`HotplugMonitor`].
+#[derive(Debug, Clone)]
+pub struct HotplugEvent {
+    path: PathBuf,
+}
+
+impl HotplugEvent {
+    /// Returns the device path indicated by this event.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Opens the [`Evdev`] indicated by this event.
+    ///
+    /// This operation is always blocking, and may block for a significant amount of time.
+    pub fn open(&self) -> io::Result<Evdev> {
+        Evdev::open(&self.path)
+    }
+}
+
 /// Enumerates all `evdev` devices, including hotplugged ones.
 ///
-/// This will first yield all devices currently plugged in, and then starts yielding hotplug events
-/// similar to [`HotplugMonitor`].
+/// This will first yield all devices currently plugged in, and then starts yielding hotplugged
+/// devices using [`HotplugMonitor`].
 ///
 /// This allows an application to process a single stream of [`Evdev`]s to both open an already
 /// plugged-in device on startup, but also to react to hot-plugged devices automatically, which is
 /// typically the desired UX of applications.
 ///
 /// Like [`crate::enumerate`], this function returns a *blocking* iterator that might take a
-/// significant amount of time to open each device.
+/// significant amount of time to open each device, so interactive applications might want to do
+/// this work on a separate thread.
 /// This iterator will also keep blocking as it waits for hotplug events, but might terminate if
 /// hotplug events are unavailable.
 ///
@@ -197,5 +230,10 @@ pub fn enumerate() -> io::Result<impl Iterator<Item = io::Result<Evdev>>> {
         }
         Err(e) => return Err(e),
     };
-    Ok(crate::enumerate()?.chain(monitor.into_iter().flatten()))
+    Ok(crate::enumerate()?.chain(
+        monitor
+            .into_iter()
+            .flatten()
+            .map(|res| res.and_then(|ev| ev.open())),
+    ))
 }

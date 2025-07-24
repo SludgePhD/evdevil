@@ -6,7 +6,7 @@ use std::{
         fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd},
         unix::{ffi::OsStrExt, prelude::RawFd},
     },
-    path::Path,
+    path::PathBuf,
 };
 
 use libc::{
@@ -15,7 +15,7 @@ use libc::{
     setsockopt, sockaddr_nl, socket, socklen_t, ssize_t, ucred,
 };
 
-use crate::Evdev;
+use crate::hotplug::HotplugEvent;
 
 fn cvt(ret: c_int) -> io::Result<c_int /* never -1 */> {
     if ret == -1 {
@@ -120,7 +120,7 @@ impl super::HotplugImpl for Impl {
         Self::open_group(MonitorNetlinkGroup::Udev)
     }
 
-    fn read(&self) -> io::Result<Evdev> {
+    fn read(&self) -> io::Result<HotplugEvent> {
         let mut buf = [0u8; 8192];
         let mut cred_msg = [0u8; unsafe { CMSG_SPACE(mem::size_of::<ucred>() as u32) as usize }];
         let mut sender = unsafe { mem::zeroed::<sockaddr_nl>() };
@@ -239,9 +239,9 @@ impl super::HotplugImpl for Impl {
             if subsystem_input && action_add {
                 if let Some(path) = devname {
                     if path.starts_with(b"/dev/input/event") {
-                        let path = Path::new(OsStr::from_bytes(path));
-                        log::debug!("match! trying to open: {}", path.display());
-                        return Evdev::open(path);
+                        let path = PathBuf::from(OsStr::from_bytes(path));
+                        log::debug!("match! got hotplug event for: {}", path.display());
+                        return Ok(HotplugEvent { path });
                     }
                 }
             }

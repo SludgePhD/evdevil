@@ -8,7 +8,7 @@ fn main() -> io::Result<()> {
     env_logger::init();
     let mon = HotplugMonitor::new()?;
     for res in mon {
-        let ev = res?;
+        let ev = res?.open()?;
         println!("{}", ev.name()?);
     }
     Ok(())

@@ -13,7 +13,7 @@ use std::{
 
 use libc::{AF_UNIX, SOCK_CLOEXEC, SOCK_SEQPACKET, connect, recv, sockaddr_un, socket, ssize_t};
 
-use crate::Evdev;
+use crate::hotplug::HotplugEvent;
 
 fn cvt(ret: c_int) -> io::Result<c_int /* never -1 */> {
     if ret == -1 {
@@ -88,7 +88,7 @@ impl super::HotplugImpl for Impl {
         }
     }
 
-    fn read(&self) -> io::Result<Evdev> {
+    fn read(&self) -> io::Result<HotplugEvent> {
         let mut buf = [0u8; 8192];
         loop {
             unsafe {
@@ -135,7 +135,7 @@ impl super::HotplugImpl for Impl {
                         path.push(OsStr::from_bytes(cdev));
 
                         log::debug!("match! trying to open: {}", path.display());
-                        return Evdev::open(path);
+                        return Ok(HotplugEvent { path });
                     }
                 }
 
