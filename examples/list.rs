@@ -2,10 +2,7 @@
 
 use std::{error::Error, fmt, io, process};
 
-use evdevil::{
-    bits::{BitSet, BitValue},
-    enumerate,
-};
+use evdevil::bits::{BitSet, BitValue};
 
 fn main() {
     env_logger::init();
@@ -24,7 +21,7 @@ fn main() {
 }
 
 fn run() -> io::Result<()> {
-    for res in enumerate()? {
+    for res in evdevil::enumerate()? {
         let device = res?;
         println!("- {}", device.path().display());
         println!("  id: {:?}", device.input_id()?);

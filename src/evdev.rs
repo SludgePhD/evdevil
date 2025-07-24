@@ -2,15 +2,12 @@ use std::{
     error::Error,
     ffi::{c_char, c_int, c_uint, c_void},
     fmt,
-    fs::{self, File, ReadDir},
+    fs::File,
     io::{self, Read as _, Write},
     mem::{self, MaybeUninit},
     os::{
         fd::{AsFd, AsRawFd, IntoRawFd},
-        unix::{
-            fs::FileTypeExt,
-            prelude::{BorrowedFd, RawFd},
-        },
+        unix::prelude::{BorrowedFd, RawFd},
     },
     path::{Path, PathBuf},
     slice,
@@ -43,7 +40,7 @@ use crate::{
 /// A handle to an *event device*.
 ///
 /// A device can be opened via [`Evdev::open`] or by iterating over all evdev devices using
-/// [`enumerate`].
+/// [`enumerate`] or [`enumerate_hotplug`].
 ///
 /// [`Evdev`]s support non-blocking I/O for reading and writing events (but not for any
 /// functionality that uses ioctls), which can be enabled or disabled by calling
@@ -57,6 +54,8 @@ use crate::{
 /// mutable reference, again mirroring the API of [`TcpStream`].
 ///
 /// [`TcpStream`]: std::net::TcpStream
+/// [`enumerate`]: crate::enumerate()
+/// [`enumerate_hotplug`]: crate::enumerate_hotplug
 #[derive(Debug)]
 pub struct Evdev {
     pub(crate) file: File,
@@ -130,7 +129,7 @@ impl Evdev {
     }
 
     /// Opens `path` without checking that it is one of the `/dev/input/event*` paths.
-    fn open_unchecked(path: PathBuf) -> io::Result<Self> {
+    pub(crate) fn open_unchecked(path: PathBuf) -> io::Result<Self> {
         let now = Instant::now();
 
         let file = match Self::try_open(&path) {
@@ -789,9 +788,10 @@ impl Evdev {
     ///
     /// **Note**: As per usual for file descriptors, writing data to the device is only possible if
     /// it was opened with write permission.
-    /// [`Evdev::open`] and [`enumerate`] will *try* to obtain write permission, and fall back to
-    /// opening the device in read-only mode if the user does not have write permission for the
-    /// evdev files.
+    /// [`Evdev::open`] will *try* to open the device with read+write permissions, and fall back to
+    /// read-only mode if the user does not have write permission for the evdev files.
+    /// If that also fails, one last attempt to open in *write-only* mode is made, to cover certain
+    /// misconfigured systems.
     /// If the [`Evdev`] does not have write permission, this method will return an error of type
     /// [`io::ErrorKind::PermissionDenied`].
     pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
@@ -964,61 +964,4 @@ fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
     let bytes = file.read(byte_buf)?;
     debug_assert_eq!(bytes % mem::size_of::<InputEvent>(), 0);
     Ok(bytes / mem::size_of::<InputEvent>())
-}
-
-/// Returns an iterator over all `evdev` devices.
-///
-/// Performing enumeration can block for a significant amount of time while opening the *evdev*
-/// device files. In user-facing applications, it is recommended to perform enumeration in a
-/// background thread.
-///
-/// Also see [`hotplug::enumerate`][crate::hotplug::enumerate].
-pub fn enumerate() -> io::Result<impl Iterator<Item = io::Result<Evdev>>> {
-    Ok(Enumerate {
-        read_dir: fs::read_dir("/dev/input")?,
-    })
-}
-
-struct Enumerate {
-    read_dir: ReadDir,
-}
-
-impl Iterator for Enumerate {
-    type Item = io::Result<Evdev>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let entry = match self.read_dir.next()? {
-                Ok(ent) => ent,
-                Err(e) => return Some(Err(e)),
-            };
-
-            // Valid evdev devices are named `eventN`. `/dev/input` also contains some other
-            // devices like `/dev/input/mouseN` that we have to skip.
-            if !entry.file_name().as_encoded_bytes().starts_with(b"event") {
-                continue;
-            }
-
-            let path = entry.path();
-            let mkerr = |ioerr: io::Error| -> io::Error {
-                io::Error::new(
-                    ioerr.kind(),
-                    format!("failed to access '{}': {}", path.display(), ioerr),
-                )
-            };
-
-            let ty = match entry.file_type() {
-                Ok(ty) => ty,
-                Err(e) => return Some(Err(mkerr(e))),
-            };
-            if !ty.is_char_device() {
-                continue;
-            }
-
-            match Evdev::open_unchecked(path) {
-                Ok(dev) => return Some(Ok(dev)),
-                Err(e) => return Some(Err(e)),
-            }
-        }
-    }
 }

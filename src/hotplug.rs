@@ -1,7 +1,7 @@
 //! Support for hotplug events.
 //!
 //! The recommended way to support device hotplug in applications is to use the
-//! [`hotplug::enumerate`] function, which returns an iterator over all devices that are or will be
+//! [`enumerate_hotplug`] function, which returns an iterator over all devices that are or will be
 //! plugged into the system.
 //!
 //! # Platform Support
@@ -13,7 +13,7 @@
 //! | Linux   | Uses the `NETLINK_KOBJECT_UEVENT` socket. Requires `udev`. |
 //! | FreeBSD | Uses `devd`'s seqpacket socket at `/var/run/devd.seqpacket.pipe`. |
 //!
-//! [`hotplug::enumerate`]: crate::hotplug::enumerate
+//! [`enumerate_hotplug`]: crate::enumerate_hotplug
 
 #[cfg(target_os = "linux")]
 mod linux;
@@ -202,38 +202,4 @@ impl HotplugEvent {
     pub fn open(&self) -> io::Result<Evdev> {
         Evdev::open(&self.path)
     }
-}
-
-/// Enumerates all `evdev` devices, including hotplugged ones.
-///
-/// This will first yield all devices currently plugged in, and then starts yielding hotplugged
-/// devices using [`HotplugMonitor`].
-///
-/// This allows an application to process a single stream of [`Evdev`]s to both open an already
-/// plugged-in device on startup, but also to react to hot-plugged devices automatically, which is
-/// typically the desired UX of applications.
-///
-/// Like [`crate::enumerate`], this function returns a *blocking* iterator that might take a
-/// significant amount of time to open each device, so interactive applications might want to do
-/// this work on a separate thread.
-/// This iterator will also keep blocking as it waits for hotplug events, but might terminate if
-/// hotplug events are unavailable.
-///
-/// If hotplug support is unimplemented on the current platform, this will degrade gracefully and
-/// only yield the currently plugged-in devices.
-pub fn enumerate() -> io::Result<impl Iterator<Item = io::Result<Evdev>>> {
-    let monitor = match HotplugMonitor::new() {
-        Ok(m) => Some(m),
-        Err(e) if e.kind() == io::ErrorKind::Unsupported => {
-            log::warn!("hotplug is not supported on this platform; hotplugged devices won't work");
-            None
-        }
-        Err(e) => return Err(e),
-    };
-    Ok(crate::enumerate()?.chain(
-        monitor
-            .into_iter()
-            .flatten()
-            .map(|res| res.and_then(|ev| ev.open())),
-    ))
 }

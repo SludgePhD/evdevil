@@ -14,6 +14,7 @@ mod abs_info;
 mod batch;
 pub mod bits;
 mod drop;
+pub mod enumerate;
 mod evdev;
 pub mod event;
 pub mod ff;
@@ -29,6 +30,8 @@ mod util;
 mod version;
 
 pub use abs_info::AbsInfo;
+#[doc(inline)]
+pub use enumerate::{enumerate, enumerate_hotplug};
 pub use evdev::*;
 pub use event::codes::{InputProp, UnknownVariant};
 pub use input_id::{Bus, InputId};

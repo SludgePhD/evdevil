@@ -315,7 +315,7 @@ impl Builder {
     ///
     /// **NOTE**: Because of how `udev` works, devices can show up with incorrect permission bits
     /// for a short time, before those permissions are set correctly by the system.
-    /// This means that calling [`enumerate`][crate::enumerate] immediately after creating a
+    /// This means that calling [`enumerate`][crate::enumerate()] immediately after creating a
     /// `uinput` device (or immediately after plugging in a physical device) might fail to access
     /// the device.
     /// However, *hotplug* events should arrive only after the device has been given the correct
