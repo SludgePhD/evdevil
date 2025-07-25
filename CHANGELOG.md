@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.2
+
+- Try to fix the docs.rs render.
+
 ## v0.3.1
 
 - Try to fix the docs.rs render.

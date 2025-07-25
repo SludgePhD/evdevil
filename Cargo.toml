@@ -1,6 +1,6 @@
 [package]
 name = "evdevil"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 license = "0BSD"
 description = "Bindings to Linux' input device APIs: evdev and uinput"
@@ -43,5 +43,5 @@ postcard = { version = "1.1", features = ["alloc"] }
 name = "hotplug"
 harness = false
 
-[package.metadata.docs-rs]
+[package.metadata.docs.rs]
 all-features = true
