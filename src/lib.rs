@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_debug_implementations)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 #[macro_use]
 mod macros;
