@@ -82,6 +82,7 @@ impl super::HotplugImpl for Impl {
             // event if we're immediately creating a `UinputDevice` after the `HotplugMonitor`
             // (which the test suite does).
             // Sleeping for a bit here largely works around that.
+            // The upstream bug is fixed in FreeBSD commit c599948cca4b860cedc7b2a2b60c0ce81f9b1bd0.
             thread::sleep(Duration::from_millis(25));
 
             Ok(Self { fd })
