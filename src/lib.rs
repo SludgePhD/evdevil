@@ -1,7 +1,4 @@
-//! Rust bindings to `evdev` and `uinput`.
-//!
-//! This crate provides an ergonomic interface to Linux' input subsystem.
-
+#![doc = include_str!("../README.md")]
 #![warn(missing_debug_implementations)]
 
 #[macro_use]
@@ -41,9 +38,6 @@ pub use keymap_entry::{KeymapEntry, Scancode};
 pub use reader::EventReader;
 pub use slot::Slot;
 pub use version::Version;
-
-#[doc = include_str!("../README.md")]
-mod readme {}
 
 #[cfg(test)]
 mod tests {

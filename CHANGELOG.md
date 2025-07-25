@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.3.0
+
+### Breaking Changes
+
+- `HotplugMonitor` no longer implements `Iterator`, but now implements `IntoIterator`.
+- `HotplugMonitor` now yields `HotplugEvent`s instead of already-opened `Evdev`s.
+  - Call `HotplugEvent::open` to open the device.
+- `hotplug::enumerate` has moved to `enumerate_hotplug` in the crate root.
+
+### New Features
+
+#### Async
+
+`EventReader` now allows reading events and reports via `async`.
+This functionality requires enabling either the `"tokio"` or `"async-io"` Cargo features.
+
+Note that a lot of evdev functionality cannot be made `async` and will always block.
+Only reading events asynchronously via the `EventReader` is supported for now.
+
+### Other Changes
+
+- FreeBSD: sleep after connecting to `devd` to ensure no events go missing.
+- Mark some methods `#[inline]` for more efficient code generation.
+- Don't redundantly invoke `fcntl` if the non-blocking status is already what we want.
+- Implement `AsFd` and `IntoRawFd` for `HotplugMonitor`.
+- Include device path in error message if opening fails.
+- Add `Report::len`, returning the number of events in the `Report`.
+- Device enumeration iterators have been made real types instead of `impl Iterator` and moved to
+  the `enumerate` module.
+
 ## v0.2.3
 
 - Update from `linux-ioctl` to `uoctl` 1.0.
