@@ -178,6 +178,7 @@ impl Evdev {
     }
 
     /// Returns the (canonicalized) file system path this [`Evdev`] has been created from.
+    #[inline]
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -689,6 +690,7 @@ impl Evdev {
     ///
     /// **Note**: If this method is used while the device is wrapped in an [`EventReader`], the
     /// [`EventReader`] will miss events and go out of sync with the device state. Don't do that.
+    #[inline]
     pub fn raw_events(&self) -> RawEvents<'_> {
         RawEvents { file: &self.file }
     }

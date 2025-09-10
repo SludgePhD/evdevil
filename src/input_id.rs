@@ -12,6 +12,7 @@ pub struct InputId(pub(crate) input_id);
 
 impl InputId {
     /// Creates an [`InputId`] from its components.
+    #[inline]
     pub const fn new(bus: Bus, vendor: u16, product: u16, version: u16) -> Self {
         Self(input_id {
             bustype: bus.0,
@@ -24,6 +25,7 @@ impl InputId {
     /// Returns the bus type this device is attached to the system with.
     ///
     /// This is often left as `0` for virtual devices.
+    #[inline]
     pub fn bus(&self) -> Bus {
         Bus(self.0.bustype)
     }
@@ -32,6 +34,7 @@ impl InputId {
     ///
     /// For USB and PCI devices, the vendor ID is typically taken from the device descriptor and may
     /// be looked up in the corresponding registry.
+    #[inline]
     pub fn vendor(&self) -> u16 {
         self.0.vendor
     }
@@ -40,6 +43,7 @@ impl InputId {
     ///
     /// For USB and PCI devices, the product ID is typically taken from the device descriptor and may
     /// be looked up in the corresponding registry.
+    #[inline]
     pub fn product(&self) -> u16 {
         self.0.product
     }
@@ -48,6 +52,7 @@ impl InputId {
     ///
     /// For USB devices, this is typically an encoding of the implemented USB-HID version
     /// (`bcdHID`).
+    #[inline]
     pub fn version(&self) -> u16 {
         self.0.version
     }

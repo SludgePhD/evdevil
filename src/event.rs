@@ -100,6 +100,7 @@ impl InputEvent {
     /// Creates an [`InputEvent`] from raw values.
     ///
     /// The timestamp of the event will be set to 0.
+    #[inline]
     pub const fn new(ty: EventType, raw_code: u16, raw_value: i32) -> Self {
         Self(input_event {
             time: libc::timeval {
@@ -117,6 +118,7 @@ impl InputEvent {
     /// Useful as a dummy or filler value that will be overwritten with a "real" event soon.
     ///
     /// This results in a [`Syn::REPORT`] event.
+    #[inline]
     pub const fn zeroed() -> Self {
         Self(input_event {
             time: libc::timeval {
@@ -196,6 +198,7 @@ impl InputEvent {
     /// [`EventKind`] is `#[non_exhaustive]`, so matching on it requires a wildcard arm that will
     /// catch any events that don't have a specific [`EventKind`] variant.
     /// Future versions of `evdevil` might add new variants to catch those events.
+    #[inline]
     pub fn kind(&self) -> EventKind {
         match self.event_type() {
             EventType::SYN => SynEvent(*self).into(),
@@ -214,6 +217,7 @@ impl InputEvent {
     }
 
     /// Returns the [`EventType`] of this event.
+    #[inline]
     pub fn event_type(&self) -> EventType {
         EventType(self.0.type_)
     }
@@ -222,6 +226,7 @@ impl InputEvent {
     ///
     /// The *code* of an [`InputEvent`] generally describes what entity the event is about.
     /// Depending on the type of event, it can describe a key, axis, sound, LED, or other entity.
+    #[inline]
     pub fn raw_code(&self) -> u16 {
         self.0.code
     }
@@ -230,6 +235,7 @@ impl InputEvent {
     ///
     /// The *value* of an [`InputEvent`] describes the new state of the key, axis, LED, or other
     /// entity.
+    #[inline]
     pub fn raw_value(&self) -> i32 {
         self.0.value
     }
@@ -261,12 +267,14 @@ macro_rules! event_wrappers {
             pub struct $name(InputEvent);
 
             impl From<$name> for EventKind {
+                #[inline]
                 fn from(value: $name) -> Self {
                     Self::$variant(value)
                 }
             }
 
             impl From<$name> for InputEvent {
+                #[inline]
                 fn from(value: $name) -> Self {
                     value.0
                 }
@@ -275,6 +283,7 @@ macro_rules! event_wrappers {
             impl Deref for $name {
                 type Target = InputEvent;
 
+                #[inline]
                 fn deref(&self) -> &InputEvent {
                     &self.0
                 }
@@ -299,6 +308,7 @@ macro_rules! event_wrappers {
         }
 
         impl From<EventKind> for InputEvent {
+            #[inline]
             fn from(kind: EventKind) -> InputEvent {
                 match kind {
                     $(
@@ -342,11 +352,13 @@ event_wrappers! {
 }
 
 impl SynEvent {
+    #[inline]
     pub fn new(syn: Syn) -> Self {
         Self(InputEvent::new(EventType::SYN, syn.0, 0))
     }
 
     /// Returns the event code as a [`Syn`] (the specific kind of `SYN` event).
+    #[inline]
     pub fn syn(&self) -> Syn {
         Syn(self.raw_code())
     }
@@ -380,11 +392,13 @@ impl From<Syn> for InputEvent {
 }
 
 impl KeyEvent {
+    #[inline]
     pub fn new(key: Key, state: KeyState) -> Self {
         Self(InputEvent::new(EventType::KEY, key.0, state.0))
     }
 
     /// Returns the [`Key`] code that has been pressed/released/repeated.
+    #[inline]
     pub fn key(&self) -> Key {
         Key(self.raw_code())
     }
@@ -394,6 +408,7 @@ impl KeyEvent {
     /// This will be [`KeyState::RELEASED`] if the key has been released, [`KeyState::PRESSED`] if
     /// it has just been pressed, and [`KeyState::REPEAT`] if the key has been held down after being
     /// pressed.
+    #[inline]
     pub fn state(&self) -> KeyState {
         KeyState(self.raw_value())
     }
@@ -431,16 +446,19 @@ impl fmt::Debug for KeyState {
 }
 
 impl RelEvent {
+    #[inline]
     pub fn new(rel: Rel, value: i32) -> Self {
         Self(InputEvent::new(EventType::REL, rel.0, value))
     }
 
     /// Returns the [`Rel`] axis identifier of this event.
+    #[inline]
     pub fn rel(&self) -> Rel {
         Rel(self.raw_code())
     }
 
     /// Returns the value by which the axis has moved.
+    #[inline]
     pub fn value(&self) -> i32 {
         self.raw_value()
     }
@@ -456,14 +474,17 @@ impl fmt::Debug for RelEvent {
 }
 
 impl AbsEvent {
+    #[inline]
     pub fn new(abs: Abs, value: i32) -> Self {
         Self(InputEvent::new(EventType::ABS, abs.0, value))
     }
 
+    #[inline]
     pub fn abs(&self) -> Abs {
         Abs(self.raw_code())
     }
 
+    #[inline]
     pub fn value(&self) -> i32 {
         self.raw_value()
     }
@@ -479,6 +500,7 @@ impl fmt::Debug for AbsEvent {
 }
 
 impl SwitchEvent {
+    #[inline]
     pub fn new(switch: Switch, on: bool) -> Self {
         Self(InputEvent::new(
             EventType::SW,
@@ -487,10 +509,12 @@ impl SwitchEvent {
         ))
     }
 
+    #[inline]
     pub fn switch(&self) -> Switch {
         Switch(self.raw_code())
     }
 
+    #[inline]
     pub fn is_pressed(&self) -> bool {
         self.raw_value() != 0
     }
@@ -506,11 +530,13 @@ impl fmt::Debug for SwitchEvent {
 }
 
 impl MiscEvent {
+    #[inline]
     pub fn new(misc: Misc, value: i32) -> Self {
         Self(InputEvent::new(EventType::MSC, misc.0, value))
     }
 
     /// Returns the event code (the type of *misc* event).
+    #[inline]
     pub fn misc(&self) -> Misc {
         Misc(self.raw_code())
     }
@@ -526,6 +552,7 @@ impl fmt::Debug for MiscEvent {
 }
 
 impl LedEvent {
+    #[inline]
     pub fn new(led: Led, on: bool) -> Self {
         Self(InputEvent::new(
             EventType::LED,
@@ -534,14 +561,17 @@ impl LedEvent {
         ))
     }
 
+    #[inline]
     pub fn led(&self) -> Led {
         Led(self.raw_code())
     }
 
+    #[inline]
     pub fn is_on(&self) -> bool {
         !self.is_off()
     }
 
+    #[inline]
     pub fn is_off(&self) -> bool {
         self.0.raw_value() == 0
     }
@@ -557,15 +587,18 @@ impl fmt::Debug for LedEvent {
 }
 
 impl RepeatEvent {
+    #[inline]
     pub fn new(repeat: Repeat, value: u32) -> Self {
         Self(InputEvent::new(EventType::REP, repeat.0, value as i32))
     }
 
     /// Returns the type of [`Repeat`] setting to be adjusted or reported by this event.
+    #[inline]
     pub fn repeat(&self) -> Repeat {
         Repeat(self.raw_code())
     }
 
+    #[inline]
     pub fn value(&self) -> u32 {
         self.raw_value() as u32
     }
@@ -581,6 +614,7 @@ impl fmt::Debug for RepeatEvent {
 }
 
 impl SoundEvent {
+    #[inline]
     pub fn new(sound: Sound, playing: bool) -> Self {
         Self(InputEvent::new(
             EventType::SND,
@@ -590,10 +624,12 @@ impl SoundEvent {
     }
 
     /// Returns the [`Sound`] this event wants to play.
+    #[inline]
     pub fn sound(&self) -> Sound {
         Sound(self.raw_code())
     }
 
+    #[inline]
     pub fn is_playing(&self) -> bool {
         self.raw_value() != 0
     }
@@ -609,6 +645,7 @@ impl fmt::Debug for SoundEvent {
 }
 
 impl UinputEvent {
+    #[inline]
     pub fn code(&self) -> UinputCode {
         UinputCode(self.raw_code())
     }
@@ -625,6 +662,7 @@ impl fmt::Debug for UinputEvent {
 
 impl ForceFeedbackEvent {
     /// Creates a [`ForceFeedbackEvent`] that starts or stops an effect.
+    #[inline]
     pub fn new_control_effect(effect: EffectId, active: bool) -> Self {
         Self(InputEvent::new(
             EventType::FF,
@@ -634,6 +672,7 @@ impl ForceFeedbackEvent {
     }
 
     // TODO: naming of these ctors
+    #[inline]
     pub fn new_set_gain(gain: u16) -> Self {
         Self(InputEvent::new(
             EventType::FF,
@@ -642,6 +681,7 @@ impl ForceFeedbackEvent {
         ))
     }
 
+    #[inline]
     pub fn new_set_autocenter(autocenter: u16) -> Self {
         Self(InputEvent::new(
             EventType::FF,
@@ -650,6 +690,7 @@ impl ForceFeedbackEvent {
         ))
     }
 
+    #[inline]
     pub fn code(&self) -> Option<ForceFeedbackCode> {
         const FF_GAIN: u16 = ff::Feature::GAIN.0;
         const FF_AUTOCENTER: u16 = ff::Feature::AUTOCENTER.0;
@@ -714,10 +755,12 @@ ffi_enum! {
 }
 
 impl MtToolType {
+    #[inline]
     pub const fn from_raw(ty: i32) -> Self {
         Self(ty)
     }
 
+    #[inline]
     pub const fn raw(self) -> i32 {
         self.0
     }

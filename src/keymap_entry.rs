@@ -18,16 +18,19 @@ use crate::{event::Key, raw::input::input_keymap_entry};
 pub struct KeymapEntry(pub(crate) input_keymap_entry);
 
 impl KeymapEntry {
+    #[inline]
     pub(crate) fn zeroed() -> Self {
         unsafe { mem::zeroed() }
     }
 
     /// Zero-based index of this entry in the keymap.
+    #[inline]
     pub fn index(&self) -> u16 {
         self.0.index
     }
 
     /// Returns the [`Key`] associated with this scancode.
+    #[inline]
     pub fn keycode(&self) -> Key {
         let key = self.0.keycode as u16;
         Key::from_raw(key)
@@ -39,6 +42,7 @@ impl KeymapEntry {
     /// [`KeymapEntry::keycode`] will be generated.
     /// The OS will then typically translate that [`Key`] to the configured localized keyboard
     /// layout.
+    #[inline]
     pub fn scancode(&self) -> Scancode {
         let len = self.0.len.min(32);
         Scancode::from_ne_slice(&self.0.scancode[..len as usize])
@@ -119,16 +123,19 @@ impl Scancode {
 }
 
 impl From<u8> for Scancode {
+    #[inline]
     fn from(value: u8) -> Self {
         Self::from_ne_slice(&[value])
     }
 }
 impl From<u16> for Scancode {
+    #[inline]
     fn from(value: u16) -> Self {
         Self::from_ne_slice(&value.to_ne_bytes())
     }
 }
 impl From<u32> for Scancode {
+    #[inline]
     fn from(value: u32) -> Self {
         Self::from_ne_slice(&value.to_ne_bytes())
     }

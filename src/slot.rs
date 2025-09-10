@@ -12,10 +12,12 @@ pub struct Slot(i32);
 // `Slot` adds the invariant that the value is always >= 0.
 
 impl Slot {
+    #[inline]
     pub(crate) fn raw(self) -> i32 {
         self.0
     }
 
+    #[inline]
     pub(crate) fn from_raw(raw: i32) -> Self {
         Self(raw)
     }
@@ -47,18 +49,21 @@ impl TryFrom<i32> for Slot {
 }
 
 impl PartialEq<i32> for Slot {
+    #[inline]
     fn eq(&self, other: &i32) -> bool {
         self.0 == *other
     }
 }
 
 impl PartialEq<u16> for Slot {
+    #[inline]
     fn eq(&self, other: &u16) -> bool {
         *self == Slot::from(*other)
     }
 }
 
 impl PartialEq<u8> for Slot {
+    #[inline]
     fn eq(&self, other: &u8) -> bool {
         *self == Slot::from(*other)
     }

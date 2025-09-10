@@ -115,6 +115,7 @@ impl HotplugMonitor {
     }
 
     /// Returns an iterator that yields hotplug events.
+    #[inline]
     pub fn iter(&self) -> Iter<'_> {
         Iter(self)
     }
@@ -192,6 +193,7 @@ pub struct HotplugEvent {
 
 impl HotplugEvent {
     /// Returns the device path indicated by this event.
+    #[inline]
     pub fn path(&self) -> &Path {
         &self.path
     }

@@ -13,6 +13,7 @@ use crate::event::Abs;
 pub struct AbsInfo(pub(crate) input_absinfo);
 
 impl AbsInfo {
+    #[inline]
     pub const fn new(minimum: i32, maximum: i32) -> Self {
         Self(input_absinfo {
             minimum,
@@ -22,6 +23,7 @@ impl AbsInfo {
     }
 
     /// Returns the axis' current value, clamped to the valid range.
+    #[inline]
     pub fn value(&self) -> i32 {
         let [min, max] = [self.minimum(), self.maximum()];
         let [min, max] = if min <= max { [min, max] } else { [max, min] };
@@ -32,46 +34,56 @@ impl AbsInfo {
     ///
     /// This is *typically* between [`AbsInfo::minimum`] and [`AbsInfo::maximum`], but this is not
     /// enforced by the kernel. [`AbsInfo::value`] clamps the value to the valid range.
+    #[inline]
     pub const fn raw_value(&self) -> i32 {
         self.0.value
     }
 
+    #[inline]
     pub const fn with_raw_value(mut self, value: i32) -> Self {
         self.0.value = value;
         self
     }
 
+    #[inline]
     pub const fn minimum(&self) -> i32 {
         self.0.minimum
     }
 
+    #[inline]
     pub const fn with_minimum(mut self, minimum: i32) -> Self {
         self.0.minimum = minimum;
         self
     }
 
+    #[inline]
     pub const fn maximum(&self) -> i32 {
         self.0.maximum
     }
 
+    #[inline]
     pub const fn with_maximum(mut self, maximum: i32) -> Self {
         self.0.maximum = maximum;
         self
     }
 
+    #[inline]
     pub const fn fuzz(&self) -> i32 {
         self.0.fuzz
     }
 
+    #[inline]
     pub const fn with_fuzz(mut self, fuzz: i32) -> Self {
         self.0.fuzz = fuzz;
         self
     }
 
+    #[inline]
     pub const fn flat(&self) -> i32 {
         self.0.flat
     }
 
+    #[inline]
     pub const fn with_flat(mut self, flat: i32) -> Self {
         self.0.flat = flat;
         self
@@ -90,10 +102,12 @@ impl AbsInfo {
     /// units for the main X/Y/Z axes are in **units/g** instead.
     ///
     /// Rotational axes ([`Abs::RX`], [`Abs::RY`], [`Abs::RZ`]) use **units/radian**.
+    #[inline]
     pub const fn resolution(&self) -> i32 {
         self.0.resolution
     }
 
+    #[inline]
     pub const fn with_resolution(mut self, resolution: i32) -> Self {
         self.0.resolution = resolution;
         self

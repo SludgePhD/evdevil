@@ -155,6 +155,7 @@ pub struct Trigger(ff_trigger);
 
 impl Trigger {
     /// No trigger button.
+    #[inline]
     pub fn none() -> Self {
         Self(ff_trigger {
             button: 0,
@@ -163,6 +164,7 @@ impl Trigger {
     }
 
     /// Good luck.
+    #[inline]
     pub fn new(button: Key, interval: u16) -> Self {
         Self(ff_trigger {
             button: button.raw(),
@@ -173,16 +175,19 @@ impl Trigger {
     /// Returns the button that triggers the effect.
     ///
     /// If no trigger is assigned, this will be [`Key::KEY_RESERVED`].
+    #[inline]
     pub fn button(&self) -> Key {
         Key::from_raw(self.0.button)
     }
 
     /// Returns the interval between triggers in milliseconds.
+    #[inline]
     pub fn interval(&self) -> u16 {
         self.0.interval
     }
 }
 impl Default for Trigger {
+    #[inline]
     fn default() -> Self {
         Self::none()
     }
@@ -235,6 +240,7 @@ impl Envelope {
     ///
     /// This envelope configures no fading: the effect will start at its configured intensity
     /// immediately, and end abruptly.
+    #[inline]
     pub fn new() -> Self {
         Self(ff_envelope {
             attack_length: 0,
@@ -245,41 +251,49 @@ impl Envelope {
     }
 
     /// Effect will be faded in for `ms` milliseconds before reaching its full intensity.
+    #[inline]
     pub fn with_attack_length(mut self, ms: u16) -> Self {
         self.0.attack_length = ms;
         self
     }
 
     /// Effect fade-in will start with intensity `level`.
+    #[inline]
     pub fn with_attack_level(mut self, level: u16) -> Self {
         self.0.attack_level = level;
         self
     }
 
     /// Effect will fade out for `ms` milliseconds before stopping.
+    #[inline]
     pub fn with_fade_length(mut self, ms: u16) -> Self {
         self.0.fade_length = ms;
         self
     }
 
     /// Effect fade-out will stop at intensity `level`.
+    #[inline]
     pub fn with_fade_level(mut self, level: u16) -> Self {
         self.0.fade_level = level;
         self
     }
 
+    #[inline]
     pub fn attack_length(&self) -> u16 {
         self.0.attack_length
     }
 
+    #[inline]
     pub fn attack_level(&self) -> u16 {
         self.0.attack_level
     }
 
+    #[inline]
     pub fn fade_length(&self) -> u16 {
         self.0.fade_length
     }
 
+    #[inline]
     pub fn fade_level(&self) -> u16 {
         self.0.fade_level
     }
@@ -322,10 +336,12 @@ impl Effect<'_> {
         this
     }
 
+    #[inline]
     pub fn effect_type(&self) -> EffectType {
         EffectType(self.raw.type_)
     }
 
+    #[inline]
     pub fn id(&self) -> EffectId {
         EffectId(self.raw.id)
     }
@@ -336,33 +352,40 @@ impl Effect<'_> {
     /// device (the input subsystem will allocate an ID for the effect).
     ///
     /// The ID can be set to a specific value in order to reconfigure an already uploaded effect.
+    #[inline]
     pub fn with_id(mut self, id: EffectId) -> Self {
         self.raw.id = id.0;
         self
     }
 
+    #[inline]
     pub fn direction(&self) -> u16 {
         self.raw.direction
     }
 
+    #[inline]
     pub fn with_direction(mut self, dir: u16) -> Self {
         self.raw.direction = dir;
         self
     }
 
+    #[inline]
     pub fn trigger(&self) -> Trigger {
         Trigger(self.raw.trigger)
     }
 
+    #[inline]
     pub fn with_trigger(mut self, trigger: Trigger) -> Self {
         self.raw.trigger = trigger.0;
         self
     }
 
+    #[inline]
     pub fn replay(&self) -> Replay {
         Replay(self.raw.replay)
     }
 
+    #[inline]
     pub fn with_replay(mut self, replay: Replay) -> Self {
         self.raw.replay = replay.0;
         self
@@ -415,6 +438,7 @@ impl fmt::Debug for Effect<'_> {
 }
 
 impl<'a> From<EffectKind<'a>> for Effect<'a> {
+    #[inline]
     fn from(value: EffectKind<'a>) -> Self {
         match value {
             EffectKind::Constant(constant) => Self::from(constant),
@@ -430,6 +454,7 @@ impl<'a> From<EffectKind<'a>> for Effect<'a> {
 }
 
 impl From<Constant> for Effect<'_> {
+    #[inline]
     fn from(value: Constant) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.constant = value.0;
@@ -439,6 +464,7 @@ impl From<Constant> for Effect<'_> {
 }
 
 impl From<Ramp> for Effect<'_> {
+    #[inline]
     fn from(value: Ramp) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.ramp = value.0;
@@ -448,6 +474,7 @@ impl From<Ramp> for Effect<'_> {
 }
 
 impl<'a> From<Periodic<'a>> for Effect<'a> {
+    #[inline]
     fn from(value: Periodic<'a>) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.periodic = value.raw;
@@ -457,6 +484,7 @@ impl<'a> From<Periodic<'a>> for Effect<'a> {
 }
 
 impl From<Rumble> for Effect<'_> {
+    #[inline]
     fn from(value: Rumble) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.rumble = value.0;
@@ -466,11 +494,13 @@ impl From<Rumble> for Effect<'_> {
 }
 
 impl From<Spring> for Effect<'_> {
+    #[inline]
     fn from(value: Spring) -> Self {
         Self::from([value, value])
     }
 }
 impl From<[Spring; 2]> for Effect<'_> {
+    #[inline]
     fn from([a, b]: [Spring; 2]) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.condition = [a.0.0, b.0.0];
@@ -480,11 +510,13 @@ impl From<[Spring; 2]> for Effect<'_> {
 }
 
 impl From<Friction> for Effect<'_> {
+    #[inline]
     fn from(value: Friction) -> Self {
         Self::from([value, value])
     }
 }
 impl From<[Friction; 2]> for Effect<'_> {
+    #[inline]
     fn from([a, b]: [Friction; 2]) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.condition = [a.0.0, b.0.0];
@@ -494,11 +526,13 @@ impl From<[Friction; 2]> for Effect<'_> {
 }
 
 impl From<Damper> for Effect<'_> {
+    #[inline]
     fn from(value: Damper) -> Self {
         Self::from([value, value])
     }
 }
 impl From<[Damper; 2]> for Effect<'_> {
+    #[inline]
     fn from([a, b]: [Damper; 2]) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.condition = [a.0.0, b.0.0];
@@ -508,11 +542,13 @@ impl From<[Damper; 2]> for Effect<'_> {
 }
 
 impl From<Inertia> for Effect<'_> {
+    #[inline]
     fn from(value: Inertia) -> Self {
         Self::from([value, value])
     }
 }
 impl From<[Inertia; 2]> for Effect<'_> {
+    #[inline]
     fn from([a, b]: [Inertia; 2]) -> Self {
         let mut effect = Effect::null();
         effect.raw.u.condition = [a.0.0, b.0.0];
@@ -541,6 +577,7 @@ pub enum EffectKind<'a> {
 pub struct Rumble(ff_rumble_effect);
 
 impl Rumble {
+    #[inline]
     pub const fn new(strong_magnitude: u16, weak_magnitude: u16) -> Self {
         Self(ff_rumble_effect {
             strong_magnitude,
@@ -557,6 +594,7 @@ pub struct Periodic<'a> {
 }
 
 impl<'a> Periodic<'a> {
+    #[inline]
     pub fn simple(waveform: Waveform, period: u16, magnitude: i16) -> Periodic<'a> {
         let mut p = Periodic {
             raw: unsafe { mem::zeroed() },
@@ -568,6 +606,7 @@ impl<'a> Periodic<'a> {
         p
     }
 
+    #[inline]
     pub fn custom(data: &'a [i16]) -> Periodic<'a> {
         let mut p = Periodic {
             raw: unsafe { mem::zeroed() },
@@ -579,31 +618,38 @@ impl<'a> Periodic<'a> {
         p
     }
 
+    #[inline]
     pub fn waveform(&self) -> Waveform {
         Waveform(self.raw.waveform)
     }
 
+    #[inline]
     pub fn period(&self) -> u16 {
         self.raw.period
     }
 
+    #[inline]
     pub fn magnitude(&self) -> i16 {
         self.raw.magnitude
     }
 
+    #[inline]
     pub fn offset(&self) -> i16 {
         self.raw.offset
     }
 
     /// The phase offset in the effect's [`Waveform`] where playback will begin.
+    #[inline]
     pub fn phase(&self) -> u16 {
         self.raw.phase
     }
 
+    #[inline]
     pub fn envelope(&self) -> Envelope {
         Envelope(self.raw.envelope)
     }
 
+    #[inline]
     pub fn with_envelope(mut self, env: Envelope) -> Self {
         self.raw.envelope = env.0;
         self
@@ -613,6 +659,7 @@ impl<'a> Periodic<'a> {
     /// data.
     ///
     /// Also see [`Periodic::custom`] for how to create such an effect.
+    #[inline]
     pub fn custom_data(&self) -> Option<&'a [i16]> {
         if self.raw.custom_data.is_null() {
             None
@@ -647,6 +694,7 @@ impl fmt::Debug for Periodic<'_> {
 pub struct Constant(ff_constant_effect);
 
 impl Constant {
+    #[inline]
     pub fn new(level: i16) -> Self {
         Self(ff_constant_effect {
             level,
@@ -659,14 +707,17 @@ impl Constant {
         })
     }
 
+    #[inline]
     pub fn level(&self) -> i16 {
         self.0.level
     }
 
+    #[inline]
     pub fn envelope(&self) -> Envelope {
         Envelope(self.0.envelope)
     }
 
+    #[inline]
     pub fn with_envelope(mut self, env: Envelope) -> Self {
         self.0.envelope = env.0;
         self
@@ -686,6 +737,7 @@ impl fmt::Debug for Constant {
 pub struct Ramp(ff_ramp_effect);
 
 impl Ramp {
+    #[inline]
     pub fn new(start_level: i16, end_level: i16) -> Self {
         Self(ff_ramp_effect {
             start_level,
@@ -699,18 +751,22 @@ impl Ramp {
         })
     }
 
+    #[inline]
     pub fn start_level(&self) -> i16 {
         self.0.start_level
     }
 
+    #[inline]
     pub fn end_level(&self) -> i16 {
         self.0.end_level
     }
 
+    #[inline]
     pub fn envelope(&self) -> Envelope {
         Envelope(self.0.envelope)
     }
 
+    #[inline]
     pub fn with_envelope(mut self, env: Envelope) -> Self {
         self.0.envelope = env.0;
         self
@@ -735,6 +791,7 @@ pub struct Condition(ff_condition_effect);
 
 impl Condition {
     /// Creates an empty [`Condition`] that never applies.
+    #[inline]
     pub fn new() -> Self {
         Self(ff_condition_effect {
             right_saturation: 0,
@@ -746,61 +803,74 @@ impl Condition {
         })
     }
 
+    #[inline]
     pub fn right_saturation(&self) -> u16 {
         self.0.right_saturation
     }
 
+    #[inline]
     pub fn left_saturation(&self) -> u16 {
         self.0.left_saturation
     }
 
+    #[inline]
     pub fn right_coeff(&self) -> i16 {
         self.0.right_coeff
     }
 
+    #[inline]
     pub fn left_coeff(&self) -> i16 {
         self.0.left_coeff
     }
 
+    #[inline]
     pub fn deadband(&self) -> u16 {
         self.0.deadband
     }
 
+    #[inline]
     pub fn center(&self) -> i16 {
         self.0.center
     }
 
+    #[inline]
     pub fn with_right_saturation(mut self, value: u16) -> Self {
         self.0.right_saturation = value;
         self
     }
 
+    #[inline]
     pub fn with_left_saturation(mut self, value: u16) -> Self {
         self.0.left_saturation = value;
         self
     }
 
+    #[inline]
     pub fn with_right_coeff(mut self, value: i16) -> Self {
         self.0.right_coeff = value;
         self
     }
 
+    #[inline]
     pub fn with_left_coeff(mut self, value: i16) -> Self {
         self.0.left_coeff = value;
         self
     }
 
+    #[inline]
     pub fn with_deadband(mut self, value: u16) -> Self {
         self.0.deadband = value;
         self
     }
 
+    #[inline]
     pub fn with_center(mut self, value: i16) -> Self {
         self.0.center = value;
         self
     }
 }
 impl Default for Condition {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }

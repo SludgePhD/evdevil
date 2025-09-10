@@ -784,11 +784,13 @@ impl EventReader {
     /// Destroys this [`EventReader`] and returns the original [`Evdev`].
     ///
     /// This will drop all input events buffered in the [`EventReader`].
+    #[inline]
     pub fn into_evdev(self) -> Evdev {
         self.evdev
     }
 
     /// Returns a reference to the [`Evdev`] this [`EventReader`] was created from.
+    #[inline]
     pub fn evdev(&self) -> &Evdev {
         &self.evdev
     }
@@ -836,21 +838,25 @@ impl EventReader {
     }
 
     /// Returns a [`BitSet`] of all [`Key`]s that are currently pressed.
+    #[inline]
     pub fn key_state(&self) -> &BitSet<Key> {
         &self.imp.state.keys
     }
 
     /// Returns a [`BitSet`] of all [`Led`]s that are currently on.
+    #[inline]
     pub fn led_state(&self) -> &BitSet<Led> {
         &self.imp.state.leds
     }
 
     /// Returns a [`BitSet`] of all [`Sound`]s that have been requested to play.
+    #[inline]
     pub fn sound_state(&self) -> &BitSet<Sound> {
         &self.imp.state.sounds
     }
 
     /// Returns a [`BitSet`] of all [`Switch`]es that are currently active or closed.
+    #[inline]
     pub fn switch_state(&self) -> &BitSet<Switch> {
         &self.imp.state.switches
     }
@@ -862,6 +868,7 @@ impl EventReader {
     ///
     /// Call [`EventReader::update`], or drain incoming events using the iterator interface in order
     /// to update the multitouch slot state.
+    #[inline]
     pub fn abs_state(&self, abs: Abs) -> i32 {
         self.imp.abs_state(abs)
     }
@@ -872,6 +879,7 @@ impl EventReader {
     ///
     /// Call [`EventReader::update`], or drain incoming events using the iterator interface in order
     /// to update the multitouch slot state.
+    #[inline]
     pub fn valid_slots(&self) -> impl Iterator<Item = Slot> + '_ {
         self.imp.valid_slots()
     }
@@ -887,6 +895,7 @@ impl EventReader {
     ///
     /// If `slot` isn't valid (yielded by [`EventReader::valid_slots`]), invalid stale data may be
     /// returned.
+    #[inline]
     pub fn slot_state(&self, slot: impl TryInto<Slot>, code: Abs) -> Option<i32> {
         self.imp.slot_state(slot, code)
     }
@@ -894,6 +903,7 @@ impl EventReader {
     /// Returns the currently selected multitouch slot.
     ///
     /// Events with `ABS_MT_*` code affect *this* slot, but not other slots.
+    #[inline]
     pub fn current_slot(&self) -> Slot {
         self.imp.current_slot()
     }
@@ -911,6 +921,7 @@ impl EventReader {
     /// it belongs to if that report is later fetched with [`EventReader::reports`].
     /// It is best to stick to either per-event or per-report processing in your program to avoid
     /// this.
+    #[inline]
     pub fn events(&mut self) -> Events<'_> {
         Events {
             reader: self,
@@ -932,6 +943,7 @@ impl EventReader {
     /// [`EventReader::reports`].
     /// It is best to stick to either per-event or per-report processing in your program to avoid
     /// this.
+    #[inline]
     pub fn reports(&mut self) -> Reports<'_> {
         Reports(self)
     }
@@ -946,6 +958,7 @@ impl EventReader {
     /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
     #[cfg(any(feature = "tokio", feature = "async-io"))]
+    #[inline]
     pub fn async_events(&mut self) -> io::Result<AsyncEvents<'_>> {
         AsyncEvents::new(self)
     }
@@ -958,6 +971,7 @@ impl EventReader {
     /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
     #[cfg(any(feature = "tokio", feature = "async-io"))]
+    #[inline]
     pub fn async_reports(&mut self) -> io::Result<AsyncReports<'_>> {
         AsyncReports::new(self)
     }
@@ -1053,6 +1067,7 @@ pub struct IntoEvents {
 
 impl IntoEvents {
     /// Consumes this [`IntoEvents`] iterator and returns back the original [`EventReader`].
+    #[inline]
     pub fn into_reader(self) -> EventReader {
         self.reader
     }
@@ -1121,6 +1136,7 @@ impl Report {
     /// Returns an iterator over the [`InputEvent`]s in this [`Report`].
     ///
     /// [`Report`] also implements [`IntoIterator`] to facilitate the same operation.
+    #[inline]
     pub fn iter(&self) -> ReportIter<'_> {
         self.into_iter()
     }
@@ -1129,6 +1145,7 @@ impl Report {
     ///
     /// Since [`Report`]s are always terminated with a [`Syn::REPORT`] event, they always have at
     /// least one event in them, so this method will never return 0.
+    #[inline]
     pub fn len(&self) -> usize {
         *self.range.end() - *self.range.start() + 1
     }
@@ -1172,6 +1189,7 @@ pub struct ReportIntoIter {
 impl Iterator for ReportIntoIter {
     type Item = InputEvent;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let Some(i) = self.range.next() else {
             return None;
@@ -1199,6 +1217,7 @@ pub struct ReportIter<'a> {
 impl<'a> Iterator for ReportIter<'a> {
     type Item = InputEvent;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let Some(i) = self.range.next() else {
             return None;

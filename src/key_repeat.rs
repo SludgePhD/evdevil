@@ -7,14 +7,17 @@ pub struct KeyRepeat {
 }
 
 impl KeyRepeat {
+    #[inline]
     pub const fn new(delay: u32, period: u32) -> Self {
         Self { delay, period }
     }
 
+    #[inline]
     pub fn delay(&self) -> u32 {
         self.delay
     }
 
+    #[inline]
     pub fn period(&self) -> u32 {
         self.period
     }
