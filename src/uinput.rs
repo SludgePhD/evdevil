@@ -641,7 +641,7 @@ impl UinputDevice {
     ///
     /// # Kernel Processing
     ///
-    /// The kernel will discard invalid events, events that don't correspond with an event type
+    /// The kernel will discard invalid events, events that don't correspond to an event type
     /// that was enabled during construction, as well as redundant events (whose value matches the
     /// current state of the button/axis).
     ///
