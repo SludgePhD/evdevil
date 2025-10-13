@@ -7,14 +7,14 @@
 //! If you intend to craft immersive experiences with haptic feedback, per-device testing may be
 //! necessary.
 //!
-//! Effects are organized hierarchically:
+//! Effects are organized as follows:
 //!
 //! - [`Effect`]
 //!   - [`Rumble`]
 //!   - [`Periodic`]
 //!   - [`Constant`]
 //!   - [`Ramp`]
-//!   - [`Condition`]
+//!   - Per-axis effects that wrap [`Condition`]
 //!     - [`Spring`]
 //!     - [`Friction`]
 //!     - [`Damper`]
@@ -237,9 +237,34 @@ impl fmt::Debug for Trigger {
 }
 
 /// Configures how an [`Effect`] should be scheduled.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// Appears to be ignored by most devices.
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Replay(ff_replay);
+
+impl Replay {
+    pub fn new(length: u16, delay: u16) -> Self {
+        Self(ff_replay { length, delay })
+    }
+
+    pub fn length(&self) -> u16 {
+        self.0.length
+    }
+
+    pub fn delay(&self) -> u16 {
+        self.0.delay
+    }
+}
+
+impl fmt::Debug for Replay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Replay")
+            .field("length", &self.length())
+            .field("delay", &self.delay())
+            .finish()
+    }
+}
 
 /// An effect envelope.
 ///
@@ -613,7 +638,16 @@ pub enum EffectKind<'a> {
 }
 
 /// A vibration effect.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// Some devices contain two motors of different strengths.
+/// The [`Rumble`] effect specifies a *strong* and a *weak* magnitude to support those devices.
+///
+/// If a device does not have hardware or driver support for rumble effects, but *does*
+/// support [`Periodic`] effects, the kernel will attempt to convert the [`Rumble`] effect.
+/// This conversion may have undesired effects, so applications may want to try to send a
+/// [`Periodic`] effect with [`Waveform::SINE`] if the device supports it, which is not subject to
+/// conversion.
+#[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Rumble(ff_rumble_effect);
 
@@ -625,8 +659,27 @@ impl Rumble {
             weak_magnitude,
         })
     }
+
+    #[inline]
+    pub fn strong_magnitude(&self) -> u16 {
+        self.0.strong_magnitude
+    }
+
+    #[inline]
+    pub fn weak_magnitude(&self) -> u16 {
+        self.0.weak_magnitude
+    }
+}
+impl fmt::Debug for Rumble {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Rumble")
+            .field("strong_magnitude", &self.strong_magnitude())
+            .field("weak_magnitude", &self.weak_magnitude())
+            .finish()
+    }
 }
 
+/// A periodic waveform effect.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Periodic<'a> {
@@ -635,6 +688,7 @@ pub struct Periodic<'a> {
 }
 
 impl<'a> Periodic<'a> {
+    /// Creates a simple [`Periodic`] effect with a fixed [`Waveform`].
     #[inline]
     pub fn simple(waveform: Waveform, period: u16, magnitude: i16) -> Periodic<'a> {
         let mut p = Periodic {
@@ -665,6 +719,7 @@ impl<'a> Periodic<'a> {
         Waveform(self.raw.waveform)
     }
 
+    /// Waveform period in ms.
     #[inline]
     pub fn period(&self) -> u16 {
         self.raw.period
@@ -675,6 +730,7 @@ impl<'a> Periodic<'a> {
         self.raw.magnitude
     }
 
+    /// Vertical offset of the waveform (and its approximate mean value).
     #[inline]
     pub fn offset(&self) -> i16 {
         self.raw.offset
@@ -697,7 +753,7 @@ impl<'a> Periodic<'a> {
         self
     }
 
-    /// If this effect has any custom waveform data attached to it, returns a reference to that
+    /// If this effect has type [`Waveform::CUSTOM`], returns a reference to the custom waveform
     /// data.
     ///
     /// Also see [`Periodic::custom`] for how to create such an effect.
@@ -774,6 +830,7 @@ impl fmt::Debug for Constant {
     }
 }
 
+/// An effect that ramps up or down over time.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Ramp(ff_ramp_effect);
@@ -931,6 +988,7 @@ impl fmt::Debug for Condition {
     }
 }
 
+/// Makes an axis spring back to its center when moved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Spring(Condition);
@@ -961,6 +1019,7 @@ impl From<Spring> for Condition {
     }
 }
 
+/// Applies friction to an axis as it is moved.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Friction(Condition);
@@ -991,6 +1050,7 @@ impl From<Friction> for Condition {
     }
 }
 
+/// Damps movement along an axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Damper(Condition);
@@ -1021,6 +1081,7 @@ impl From<Damper> for Condition {
     }
 }
 
+/// Resists changes of velocity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Inertia(Condition);
