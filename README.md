@@ -9,15 +9,18 @@ This library provides an interface to the Linux and FreeBSD input device subsyst
 - Device Hotplug support.
 - Light on dependencies.
 - FreeBSD compatibility.
-- `async` support via Tokio or `async-io`.
+- `async` support via [Tokio] or [`async-io`].
 
 ## Cargo Features
 
 |  Feature   | Description |
 |------------|-------------|
 | `serde`    | Implements `Serialize` and `Deserialize` for many event code wrappers like `Key`, `Rel`, etc. |
-| `tokio`    | Uses tokio to enable `async` event reading using `EventReader`. |
-| `async-io` | Uses `async-io` to enable `async` event reading using `EventReader`. |
+| `tokio`    | Uses [Tokio] to enable `async` event reading using `EventReader`. |
+| `async-io` | Uses [`async-io`] to enable `async` event reading using `EventReader`. |
+
+[Tokio]: https://github.com/tokio-rs/tokio
+[`async-io`]: https://github.com/smol-rs/async-io
 
 ## Rust Support
 
@@ -31,7 +34,16 @@ Compatibility with older Rust versions may be provided on a best-effort basis.
 
 ## Development
 
+Documentation for Linux' input subsystem can be found at <https://www.kernel.org/doc/html/latest/input/index.html>.
+
 ### Testing
 
 The crate is tested using end-to-end tests that create a virtual `uinput` device and then open it.
 This means the user running the tests needs to have permission to write to `/dev/uinput` and the input devices in `/dev/input/event*`.
+
+To run the test suite (and all examples) via `sudo`, you can place this `.cargo/config.toml` file in your repository checkout:
+
+```toml
+[target.'cfg(all())']
+runner = "sudo"
+```

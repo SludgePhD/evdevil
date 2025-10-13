@@ -113,10 +113,15 @@ impl EventType {
 ffi_enum! {
     /// Synchronization event types.
     ///
+    /// This is the event code of [`SynEvent`][super::SynEvent]s.
+    ///
     /// The *value* of the input event is unspecified for `SYN` events. Only their position in the
     /// event stream and their type matters.
     pub enum Syn: u16 {
         /// Marks the end of a group of events.
+        ///
+        /// If this event code is received, all preceding non-[`Syn`] events are committed to the
+        /// receiving application without any lost events.
         REPORT = 0,
         CONFIG = 1,
         /// Unused. Used to be used for the legacy ("type A") multitouch protocol.
@@ -125,6 +130,7 @@ ffi_enum! {
         ///
         /// If this happens, userspace has missed a state change and should fetch the current state
         /// using the evdev `ioctl`s.
+        /// [`EventReader`][crate::reader::EventReader] can be used to do this automatically.
         DROPPED = 3,
         MAX = 0xf,
         CNT = Self::MAX.0 + 1,
@@ -175,10 +181,12 @@ impl From<UnknownVariant> for io::Error {
 ffi_enum! {
     /// An *evdev* key or button identifier.
     ///
+    /// This is the event code of [`KeyEvent`][super::KeyEvent]s.
+    ///
     /// This type has associated constants mimicking the preprocessor constants defined in
     /// `linux/input.h`. [`Key`]s will use the name of the constant when formatting with `Debug` or
     /// `Display`, if a matching constant exists. [`Key`] also implements [`FromStr`], which will
-    /// attempt to parse the *evdev* key name.
+    /// attempt to parse the constant name.
     ///
     /// Note that there are aliased key codes: several associated constants of this type have the same
     /// value and will compare equal. When formatting such a [`Key`], the name of one of the
@@ -867,7 +875,9 @@ impl fmt::Debug for Key {
 }
 
 ffi_enum! {
-    /// A relative axis identifier.
+    /// `REL_*`: A relative axis identifier.
+    ///
+    /// This is the event code of [`RelEvent`][super::RelEvent]s.
     pub enum Rel: u16 {
         X             = 0x00,
         Y             = 0x01,
@@ -926,7 +936,9 @@ impl fmt::Debug for Rel {
 }
 
 ffi_enum! {
-    /// An absolute axis identifier.
+    /// `ABS_*`: An absolute axis identifier.
+    ///
+    /// This is the event code of [`AbsEvent`][super::AbsEvent]s.
     pub enum Abs: u16 {
         X              = 0x00,
         Y              = 0x01,
@@ -1016,7 +1028,12 @@ impl fmt::Debug for Abs {
 }
 
 ffi_enum! {
-    /// A binary switch (`SW_*`).
+    /// `SW_*`: A binary switch.
+    ///
+    /// This is the event code of [`SwitchEvent`][super::SwitchEvent]s.
+    ///
+    /// Unlike [`Key`]s, switches are toggled instead of held, and do not support automatic key
+    /// repeat.
     pub enum Switch: u16 {
         LID                  = 0x00,
         TABLET_MODE          = 0x01,
@@ -1079,7 +1096,9 @@ impl fmt::Debug for Switch {
 }
 
 ffi_enum! {
-    /// A miscellaneous event type (`MSC_*`).
+    /// `MSC_*`: A miscellaneous event type, such as a timestamp or scancode.
+    ///
+    /// This is the event code of [`MiscEvent`][super::MiscEvent]s.
     pub enum Misc: u16 {
         SERIAL    = 0x00,
         PULSELED  = 0x01,
@@ -1140,7 +1159,7 @@ impl fmt::Debug for Misc {
 }
 
 ffi_enum! {
-    /// Event codes for [`UinputEvent`][crate::event::UinputEvent].
+    /// Event codes for [`UinputEvent`][super::UinputEvent].
     pub enum UinputCode: u16 {
         /// There is a pending force-feedback upload request.
         ///
@@ -1148,7 +1167,7 @@ ffi_enum! {
         /// the [`UinputEvent`] and a handler.
         ///
         /// [`UinputDevice::ff_upload`]: crate::uinput::UinputDevice::ff_upload
-        /// [`UinputEvent`]: crate::event::UinputEvent
+        /// [`UinputEvent`]: super::UinputEvent
         FF_UPLOAD = 1,
         /// There is a pending force-feedback deletion request.
         ///
@@ -1156,7 +1175,7 @@ ffi_enum! {
         /// the [`UinputEvent`] and a handler.
         ///
         /// [`UinputDevice::ff_erase`]: crate::uinput::UinputDevice::ff_erase
-        /// [`UinputEvent`]: crate::event::UinputEvent
+        /// [`UinputEvent`]: super::UinputEvent
         FF_ERASE  = 2,
     }
 }
@@ -1170,7 +1189,9 @@ impl fmt::Debug for UinputCode {
 }
 
 ffi_enum! {
-    /// A device LED or other indicator.
+    /// `LED_*`: A device LED or other indicator.
+    ///
+    /// This is the event code of [`LedEvent`][super::LedEvent]s.
     pub enum Led: u16 {
         NUML     = 0x00,
         CAPSL    = 0x01,
@@ -1247,7 +1268,9 @@ impl fmt::Debug for Repeat {
 }
 
 ffi_enum! {
-    /// A sound effect.
+    /// `SND_*`: A sound effect.
+    ///
+    /// This is the event code of [`SoundEvent`][super::SoundEvent]s.
     pub enum Sound: u16 {
         CLICK = 0x00,
         BELL  = 0x01,

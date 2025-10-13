@@ -24,7 +24,7 @@ impl Interface for TestIntf {
         _state: &mut DeviceState,
         _queue: &mut VecDeque<InputEvent>,
     ) -> io::Result<()> {
-        todo!()
+        unimplemented!()
     }
 }
 

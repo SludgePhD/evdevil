@@ -651,12 +651,13 @@ impl Evdev {
         EventReader::new(self)
     }
 
-    /// Returns whether this device has any pending *raw* events that can be read without blocking.
+    /// Returns whether this device has any pending raw events that can be read without blocking.
     ///
     /// If this returns `true`, calling [`Evdev::raw_events()`] and then calling
     /// [`RawEvents::next()`] is guaranteed to not block (but only for a single event).
+    /// Similarly, the next call to [`Evdev::read_events`] will not block.
     ///
-    /// Note that this does not work for [`Evdev`]s wrapped in an [`EventReader`], since
+    /// **Note**: This does not work for [`Evdev`]s wrapped in an [`EventReader`], since
     /// [`EventReader`] might read and discard several events from the underlying device. For
     /// updating an [`EventReader`] without blocking, use [`EventReader::update`].
     pub fn is_readable(&self) -> io::Result<bool> {
@@ -665,19 +666,20 @@ impl Evdev {
 
     /// Blocks the calling thread until [`Evdev::is_readable`] would return `true`.
     ///
-    /// This will block even if `self` is in non-blocking mode (via [`Evdev::set_nonblocking`]).
-    /// For checking whether events can be read from `self` without blocking, use
+    /// This will block even if the device is in non-blocking mode (via [`Evdev::set_nonblocking`]).
+    /// For checking whether events can be read from the device without blocking, use
     /// [`Evdev::is_readable`], which will *never* block.
     ///
-    /// If `self` is already readable, this will return immediately.
+    /// If the device is already readable when this method is called, it will return immediately.
     pub fn block_until_readable(&self) -> io::Result<()> {
         block_until_readable(self.as_raw_fd())
     }
 
     /// Returns an iterator over the raw `evdev` events.
     ///
-    /// This will directly read from the `evdev`, without any buffering, filtering, synchronization
-    /// on lost events, or fetching of the kernel's view of the device state.
+    /// This will directly read individual events from the `evdev`, without any buffering,
+    /// filtering, synchronization on lost events, or fetching of the kernel's view of the device
+    /// state.
     ///
     /// It is recommended to use [`Evdev::into_reader`] instead.
     ///
@@ -685,8 +687,13 @@ impl Evdev {
     /// relative axes ([`RelEvent`][crate::event::RelEvent]), since those have no state.
     ///
     /// If the [`Evdev`] is in non-blocking mode, the iterator will return [`None`] when reading
-    /// fails with a [`WouldBlock`][io::ErrorKind::WouldBlock] error.
-    /// If it is in blocking mode, [`RawEvents::next`] will block until an event is available.
+    /// fails with a [`WouldBlock`][io::ErrorKind::WouldBlock] error (and later calls to
+    /// [`Iterator::next`] may return [`Some`] again).
+    /// If the device is in blocking mode, [`RawEvents::next`] will block until an event is
+    /// available.
+    ///
+    /// Reading events individually can be slow, since every event incurs a system call.
+    /// You can use [`Evdev::read_events`] to read them in larger batches.
     ///
     /// **Note**: If this method is used while the device is wrapped in an [`EventReader`], the
     /// [`EventReader`] will miss events and go out of sync with the device state. Don't do that.
@@ -702,8 +709,11 @@ impl Evdev {
     ///
     /// This method will block until at least 1 event is available when the [`Evdev`] is in blocking
     /// mode.
-    /// If it is in non-blocking mode, this method will return an [`io::ErrorKind::WouldBlock`]
-    /// error when there are no events to read.
+    /// If the device is in non-blocking mode, this method will return an error of type
+    /// [`io::ErrorKind::WouldBlock`] when there are no events to read.
+    ///
+    /// **Note**: If this method is used while the device is wrapped in an [`EventReader`], the
+    /// [`EventReader`] will miss events and go out of sync with the device state. Don't do that.
     pub fn read_events(&self, buf: &mut [InputEvent]) -> io::Result<usize> {
         read_raw(&self.file, buf)
     }
@@ -747,40 +757,48 @@ impl Evdev {
     ///
     /// To query the list of LEDs available on the device, use [`Evdev::supported_leds`].
     ///
-    /// Convenience wrapper around [`Evdev::write`].
+    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`LedEvent`]
+    /// to the device.
     pub fn set_led(&self, led: Led, on: bool) -> io::Result<()> {
         self.write(&[LedEvent::new(led, on).into()])
     }
 
-    /// Plays or stops a force-feedback effect (eg. rumble).
+    /// Starts or stops a force-feedback effect (eg. [`ff::Rumble`]).
     ///
     /// Before an effect can be started with this method, it needs to be uploaded via
     /// [`Evdev::upload_ff_effect`].
     ///
-    /// Convenience wrapper around [`Evdev::write`].
+    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
+    /// to the device.
     pub fn control_ff(&self, effect: ff::EffectId, active: bool) -> io::Result<()> {
         self.write(&[ForceFeedbackEvent::new_control_effect(effect, active).into()])
     }
 
     /// Sets the global gain for force-feedback effects.
     ///
+    /// The `gain` value encodes the gain as a fraction of 65535 (100%).
+    ///
     /// Requires that the device supports [`ff::Feature::GAIN`].
     ///
-    /// Convenience wrapper around [`Evdev::write`].
+    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
+    /// to the device.
     pub fn set_ff_gain(&self, gain: u16) -> io::Result<()> {
         self.write(&[ForceFeedbackEvent::new_set_gain(gain).into()])
     }
 
     /// Controls the autocenter feature for force-feedback effects.
     ///
+    /// The `autocenter` value encodes the autocenter power as a fraction of 65535 (100%).
+    ///
     /// Requires that the device supports [`ff::Feature::AUTOCENTER`].
     ///
-    /// Convenience wrapper around [`Evdev::write`].
+    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
+    /// to the device.
     pub fn set_ff_autocenter(&self, autocenter: u16) -> io::Result<()> {
         self.write(&[ForceFeedbackEvent::new_set_autocenter(autocenter).into()])
     }
 
-    /// *Writes* input events *to* the device.
+    /// Writes events to the device.
     ///
     /// This can be used to change certain device states such as LEDs or sounds, or to play
     /// force-feedback effects.
@@ -809,7 +827,7 @@ impl Evdev {
     /// Sets the [`clockid_t`] to be used for event timestamps.
     ///
     /// `evdev` doesn't support *all* clocks. This method will fail with
-    /// [`io::ErrorKind::InvalidInput`] when a `clockid` is passed that `evdev` doesn't like.
+    /// [`io::ErrorKind::InvalidInput`] when a `clockid` is passed that the kernel doesn't like.
     /// At least [`libc::CLOCK_REALTIME`] and [`libc::CLOCK_MONOTONIC`] seem to be supported.
     ///
     /// By default, [`libc::CLOCK_REALTIME`] is used, which is the same clock source used by
@@ -873,7 +891,7 @@ impl Evdev {
         Ok(())
     }
 
-    /// Returns the current event mask.
+    /// Fetches the current event mask.
     pub fn event_mask(&self) -> io::Result<BitSet<EventType>> {
         self.fetch_mask(EventType::from_raw(0))
     }
@@ -881,11 +899,14 @@ impl Evdev {
     /// Sets the event mask.
     ///
     /// Only [`EventType`]s included in `mask` will be forwarded to this [`Evdev`] handle.
+    ///
+    /// **Note**: [`EventType::SYN`] cannot be the only enabled event. At least one "real" (non-SYN)
+    /// event has to be enabled, or **no** events will be forwarded to the program.
     pub fn set_event_mask(&self, mask: &BitSet<EventType>) -> io::Result<()> {
         self.set_mask(EventType::from_raw(0), mask)
     }
 
-    /// Returns the current key event mask.
+    /// Fetches the current key event mask.
     pub fn key_mask(&self) -> io::Result<BitSet<Key>> {
         self.fetch_mask(EventType::KEY)
     }
@@ -899,7 +920,7 @@ impl Evdev {
         self.set_mask(EventType::KEY, mask)
     }
 
-    /// Returns the current relative axis event mask.
+    /// Fetches the current relative axis event mask.
     pub fn rel_mask(&self) -> io::Result<BitSet<Rel>> {
         self.fetch_mask(EventType::REL)
     }
@@ -909,7 +930,7 @@ impl Evdev {
         self.set_mask(EventType::REL, mask)
     }
 
-    /// Returns the current absolute axis event mask.
+    /// Fetches the current absolute axis event mask.
     pub fn abs_mask(&self) -> io::Result<BitSet<Abs>> {
         self.fetch_mask(EventType::ABS)
     }
@@ -919,7 +940,7 @@ impl Evdev {
         self.set_mask(EventType::ABS, mask)
     }
 
-    /// Returns the current switch event mask.
+    /// Fetches the current switch event mask.
     pub fn switch_mask(&self) -> io::Result<BitSet<Switch>> {
         self.fetch_mask(EventType::SW)
     }

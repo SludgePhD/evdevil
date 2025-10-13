@@ -623,7 +623,7 @@ impl SoundEvent {
         ))
     }
 
-    /// Returns the [`Sound`] this event wants to play.
+    /// Returns the [`Sound`] this event is requesting to play or stop.
     #[inline]
     pub fn sound(&self) -> Sound {
         Sound(self.raw_code())

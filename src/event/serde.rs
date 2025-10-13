@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, doc(cfg(feature = "serde")))]
+
 use std::{any::type_name, fmt, marker::PhantomData, str::FromStr};
 
 use serde::{Deserialize, Serialize, de};

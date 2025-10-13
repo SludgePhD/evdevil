@@ -6,6 +6,40 @@
 //! respect all [`Effect`] fields.
 //! If you intend to craft immersive experiences with haptic feedback, per-device testing may be
 //! necessary.
+//!
+//! Effects are organized hierarchically:
+//!
+//! - [`Effect`]
+//!   - [`Rumble`]
+//!   - [`Periodic`]
+//!   - [`Constant`]
+//!   - [`Ramp`]
+//!   - [`Condition`]
+//!     - [`Spring`]
+//!     - [`Friction`]
+//!     - [`Damper`]
+//!     - [`Inertia`]
+//!
+//! All effect types can be represented as [`Effect`], and also in a matchable enum [`EffectKind`].
+//! The usual conversions via [`Into`]/[`From`] are supported.
+//!
+//! # Usage
+//!
+//! Support for force-feedback features can be queried via [`Evdev::supported_ff_features`].
+//! The number of supported effects that can be stored at the same time can be queried via
+//! [`Evdev::supported_ff_effects`].
+//!
+//! An appropriate effect can then be uploaded by calling [`Evdev::upload_ff_effect`], returning
+//! the [`EffectId`] assigned by the kernel.
+//!
+//! The uploaded effect can then be triggered via [`Evdev::control_ff`], or erased by calling
+//! [`Evdev::erase_ff_effect`].
+//!
+//! [`Evdev::supported_ff_features`]: crate::Evdev::supported_ff_features
+//! [`Evdev::supported_ff_effects`]: crate::Evdev::supported_ff_effects
+//! [`Evdev::upload_ff_effect`]: crate::Evdev::upload_ff_effect
+//! [`Evdev::control_ff`]: crate::Evdev::control_ff
+//! [`Evdev::erase_ff_effect`]: crate::Evdev::erase_ff_effect
 
 use std::{
     fmt,
@@ -93,7 +127,8 @@ impl fmt::Debug for Feature {
 ffi_enum! {
     /// A force-feedback effect type.
     ///
-    /// Every effect type has a corresponding [`Feature`] that indicates support for it.
+    /// Every effect type has a corresponding [`Feature`] that indicates support for it, as well as
+    /// a type in this module that can store the effect parameters.
     pub enum EffectType: u16 {
         RUMBLE   = Feature::RUMBLE.0,
         PERIODIC = Feature::PERIODIC.0,
@@ -201,6 +236,7 @@ impl fmt::Debug for Trigger {
     }
 }
 
+/// Configures how an [`Effect`] should be scheduled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Replay(ff_replay);
@@ -320,6 +356,10 @@ impl fmt::Debug for Envelope {
 /// A force-feedback effect description.
 ///
 /// Primarily created from the more specific force-feedback types in this module using [`From`].
+///
+/// The `'a` lifetime is only used for [`Periodic`] effects with [`Waveform::CUSTOM`] (created via
+/// [`Periodic::custom`]).
+/// It can be `'static` for all other effects.
 #[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Effect<'a> {
@@ -351,7 +391,8 @@ impl Effect<'_> {
     /// By default, effects use ID `-1`, which is appropriate when uploading a new effect to a
     /// device (the input subsystem will allocate an ID for the effect).
     ///
-    /// The ID can be set to a specific value in order to reconfigure an already uploaded effect.
+    /// The ID can be set to a existing [`EffectId`] in order to reconfigure an already uploaded
+    /// effect.
     #[inline]
     pub fn with_id(mut self, id: EffectId) -> Self {
         self.raw.id = id.0;
@@ -608,6 +649,7 @@ impl<'a> Periodic<'a> {
 
     #[inline]
     pub fn custom(data: &'a [i16]) -> Periodic<'a> {
+        // TODO: seems like a bad idea to expose a near-useless feature like this
         let mut p = Periodic {
             raw: unsafe { mem::zeroed() },
             _p: PhantomData,
@@ -638,7 +680,7 @@ impl<'a> Periodic<'a> {
         self.raw.offset
     }
 
-    /// The phase offset in the effect's [`Waveform`] where playback will begin.
+    /// The horizontal phase offset in the effect's [`Waveform`] where playback will begin.
     #[inline]
     pub fn phase(&self) -> u16 {
         self.raw.phase
