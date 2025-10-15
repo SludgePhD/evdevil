@@ -44,6 +44,6 @@ This means the user running the tests needs to have permission to write to `/dev
 To run the test suite (and all examples) via `sudo`, you can place this `.cargo/config.toml` file in your repository checkout:
 
 ```toml
-[target.'cfg(all())']
-runner = "sudo"
+[target.'cfg(true)']
+runner = "sudo -E --preserve-env=PATH"
 ```
