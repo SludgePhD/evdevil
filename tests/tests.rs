@@ -2,16 +2,22 @@
 //!
 //! Some tests will adapt to the selected async runtime automatically. This test exercises them.
 
-use std::{env, process::Command};
+use std::{env, ffi::OsString, process::Command};
 
 fn test(args: &[&str]) {
-    let cargo = env::var_os("CARGO").expect("`CARGO` isn't set");
-    let status = Command::new(cargo)
+    let cargo = env::var_os("CARGO").unwrap_or_else(|| OsString::from("cargo"));
+    let output = Command::new(cargo)
         .args(&["test", "-p", "evdevil", "--lib"]) // avoid infinite recursion
         .args(args)
-        .status()
+        .output()
         .unwrap();
-    assert!(status.success());
+    assert!(
+        output.status.success(),
+        "cargo exited with error code {:?}. stderr:\n{}\nstdout: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout),
+    );
 }
 
 #[test]
