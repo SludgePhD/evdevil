@@ -22,7 +22,7 @@ This library provides an interface to the Linux and FreeBSD input device subsyst
 [Tokio]: https://github.com/tokio-rs/tokio
 [`async-io`]: https://github.com/smol-rs/async-io
 
-## Rust Support
+## Rust Version Support
 
 This library targets the latest Rust version.
 
@@ -31,6 +31,9 @@ version of Rust that was succeeded 6 months ago, you'd also use an at least 6 mo
 this library.
 
 Compatibility with older Rust versions may be provided on a best-effort basis.
+
+The minimum supported Rust version is specified as `rust-version` in `Cargo.toml`, and tested
+against in CI, so Cargo's resolver should find a version for you that works.
 
 ## Development
 
