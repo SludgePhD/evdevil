@@ -67,6 +67,7 @@ jobs:
   freebsd:
     runs-on: ubuntu-latest
     name: Test on FreeBSD
+    timeout-minutes: 10  # this occasionally hangs forever, so cancel it quickly
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
