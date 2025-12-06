@@ -4,10 +4,10 @@ version = "0.3.3"
 edition = "2024"
 license = "0BSD"
 description = "Bindings to Linux' input device APIs: evdev and uinput"
-categories = ["os::linux-apis", "hardware-support"]
+categories = ["os::linux-apis", "os::freebsd-apis", "hardware-support"]
 repository = "https://github.com/SludgePhD/evdevil"
 keywords = ["gamepad", "joystick", "keyboard", "mouse", "touchscreen"]
-rust-version = "1.85"
+rust-version = "1.85"  # (keep this in sync with ci.yaml)
 
 [dependencies]
 libc = "0.2.172"
