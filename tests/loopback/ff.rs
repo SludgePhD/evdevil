@@ -65,6 +65,7 @@ impl<'a> FFTest<'a> {
             (Ok(id1), Ok(id2)) => {
                 assert_eq!(id1, id2);
                 self.uploaded.insert(id1);
+                log::debug!("upload complete: id = {id2:?}");
                 Ok(id2)
             }
             (Err(e1), Err(e2)) => {

@@ -100,6 +100,7 @@ impl InputEvent {
     /// Creates an [`InputEvent`] from raw values.
     ///
     /// The timestamp of the event will be set to 0.
+    /// When submitting events to the kernel, the time stamp will be replaced.
     #[inline]
     pub const fn new(ty: EventType, raw_code: u16, raw_value: i32) -> Self {
         Self(input_event {

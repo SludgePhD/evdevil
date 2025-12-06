@@ -119,7 +119,9 @@ impl Builder {
     /// They can be fetched from an input device by calling [`Evdev::input_id`].
     ///
     /// [`Evdev::input_id`]: crate::Evdev::input_id
+    #[inline]
     pub fn with_input_id(mut self, id: InputId) -> io::Result<Self> {
+        // Returns an `io::Result` so that all the builder methods have the same signature.
         self.setup.id = id.0;
         Ok(self)
     }
@@ -247,7 +249,7 @@ impl Builder {
     ///
     /// The [`AbsInfo`] associated with an axis may be changed by an [`Evdev`][crate::Evdev] client
     /// via [`Evdev::set_abs_info`][crate::Evdev::set_abs_info].
-    #[doc(alias = "UI_ABS_SETUP")]
+    #[doc(alias = "UI_SET_ABSBIT", alias = "UI_ABS_SETUP")]
     pub fn with_abs_axes(self, axes: impl IntoIterator<Item = AbsSetup>) -> io::Result<Self> {
         self.enable_event(EventType::ABS)?;
         for setup in axes {
@@ -267,6 +269,7 @@ impl Builder {
     /// Note that you also have to enable the specific force-feedback features you intend to support
     /// by calling [`Builder::with_ff_features`].
     pub fn with_ff_effects_max(mut self, ff_max: u32) -> io::Result<Self> {
+        // Returns an `io::Result` so that all the builder methods have the same signature.
         self.setup.ff_effects_max = ff_max;
         Ok(self)
     }
@@ -383,7 +386,7 @@ pub struct UinputDevice {
     // NOTE: we deliberately don't call `UI_DEV_DESTROY` on drop, since there can be multiple
     // `UinputDevice` handles referring to the same device or file description due to `try_clone`.
     // Closing the last handle to the device will already make the kernel clean everything up
-    // anyways, to using the ioctl seems unnecessary.
+    // anyways, so using the ioctl seems unnecessary.
     file: File,
 }
 
@@ -420,6 +423,11 @@ impl FromRawFd for UinputDevice {
 
 impl UinputDevice {
     /// Returns a [`Builder`] for configuring a new input device.
+    ///
+    /// # Errors
+    ///
+    /// This will fails with an [`io::ErrorKind::PermissionDenied`] error if the current user is not
+    /// allowed to open `/dev/uinput` with read and write permission.
     pub fn builder() -> io::Result<Builder> {
         Builder::new()
     }
@@ -435,6 +443,7 @@ impl UinputDevice {
     ///
     /// All properties, such as whether the handle is in non-blocking mode, will be shared between
     /// the instances.
+    #[doc(alias = "dup")]
     pub fn try_clone(&self) -> io::Result<Self> {
         Ok(Self {
             file: self.file.try_clone()?,
@@ -509,6 +518,7 @@ impl UinputDevice {
     /// returned by this method.
     ///
     /// This functionality is generally non-portable and only works on Linux.
+    #[doc(alias = "UI_GET_SYSNAME")]
     pub fn sysname(&self) -> io::Result<OsString> {
         unsafe { self.fetch_string("UI_GET_SYSNAME", UI_GET_SYSNAME) }
     }
@@ -577,6 +587,12 @@ impl UinputDevice {
     /// If `handler` returns a native OS error (eg. via [`io::Error::last_os_error`]), we'll return
     /// that error code directly.
     /// Otherwise, we'll try to translate the [`io::ErrorKind`] of the error to something sensible.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// This functionality is stubbed out on FreeBSD. [`UinputEvent`]s are never sent to the
+    /// [`UinputDevice`].
+    #[doc(alias = "UI_BEGIN_FF_UPLOAD", alias = "UI_END_FF_UPLOAD")]
     pub fn ff_upload<R>(
         &self,
         request: &UinputEvent,
@@ -621,12 +637,13 @@ impl UinputDevice {
     /// This should be called when receiving a [`UinputEvent`] with a code of
     /// [`UinputCode::FF_ERASE`].
     ///
-    /// If `handler` returns an error, that error will both be returned to the caller of `ff_erase`
-    /// and also to whichever process attempted to upload the effect.
-    /// This requires a lossy conversion to a C style `Exyz` error constant.
-    /// If `handler` returns a native OS error (eg. via [`io::Error::last_os_error`]), we'll return
-    /// that error code directly.
-    /// Otherwise, we'll try to translate the [`io::ErrorKind`] of the error to something sensible.
+    /// Errors from `handler` will be propagated as described in [`UinputDevice::ff_upload`].
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// This functionality is stubbed out on FreeBSD. [`UinputEvent`]s are never sent to the
+    /// [`UinputDevice`].
+    #[doc(alias = "UI_BEGIN_FF_ERASE", alias = "UI_END_FF_ERASE")]
     pub fn ff_erase(
         &self,
         request: &UinputEvent,
@@ -675,8 +692,8 @@ impl UinputDevice {
     /// It will also set the event timestamp to the current time (at least it will do this if the
     /// time stamp is zero).
     ///
-    /// [`RelEvent`]s will always be forwarded to readers, since there is no state associated with
-    /// them.
+    /// [`RelEvent`]s will always be forwarded to readers (as long as their [`Rel`] axis has been
+    /// enabled during construction), since there is no state associated with them.
     ///
     /// [`RelEvent`]: crate::event::RelEvent
     pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
@@ -747,6 +764,12 @@ impl<'a> EventWriter<'a> {
     }
 
     /// Finishes this batch of events by sending a `SYN_REPORT` event.
+    ///
+    /// If this method isn't called by the user, it will be called when the [`EventWriter`] is
+    /// dropped.
+    /// Since [`Drop`] implementations cannot handle errors, any errors that occur will only be
+    /// logged.
+    /// It is recommended to use this method instead, to ensure errors are handled correctly.
     pub fn finish(mut self) -> io::Result<()> {
         self.finish_impl()?;
         Ok(())
@@ -853,6 +876,8 @@ pub struct ForceFeedbackUpload(uinput_ff_upload);
 impl ForceFeedbackUpload {
     /// Returns the [`Effect`] that is being uploaded.
     pub fn effect(&self) -> &Effect<'static> {
+        // FIXME: the `'static` lifetime would be unsound if uinput supported custom waveform data
+
         // Safety: `#[repr(transparent)]`
         unsafe { mem::transmute::<&ff_effect, &Effect>(&self.0.effect) }
     }
@@ -870,6 +895,8 @@ impl ForceFeedbackUpload {
     /// If this upload is uploading a *new* [`Effect`], this will refer to an invalid [`Effect`]
     /// structure (likely with all fields zeroed out).
     pub fn old(&self) -> &Effect<'static> {
+        // FIXME: the `'static` lifetime would be unsound if uinput supported custom waveform data
+
         // Safety: `#[repr(transparent)]`
         unsafe { mem::transmute::<&ff_effect, &Effect>(&self.0.old) }
     }
@@ -892,6 +919,7 @@ impl fmt::Debug for ForceFeedbackUpload {
 pub struct ForceFeedbackErase(uinput_ff_erase);
 
 impl ForceFeedbackErase {
+    /// Returns the [`EffectId`] of the effect that should be erased.
     pub fn effect_id(&self) -> EffectId {
         EffectId(self.0.effect_id.try_into().unwrap())
     }

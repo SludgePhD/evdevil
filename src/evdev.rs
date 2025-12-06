@@ -212,6 +212,7 @@ impl Evdev {
     /// **Note**: Care must be taken when using this method.
     /// Functionality in this crate (like [`EventReader`]) may assume that no other file handle is
     /// used to modify device state or read events from it.
+    #[doc(alias = "dup")]
     pub fn try_clone(&self) -> io::Result<Self> {
         Ok(Self {
             file: self.file.try_clone()?,
