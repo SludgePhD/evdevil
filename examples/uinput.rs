@@ -1,3 +1,5 @@
+//! Creates a uinput device and presses a key repeatedly.
+
 use std::{io, thread, time::Duration};
 
 use evdevil::{
@@ -8,7 +10,7 @@ use evdevil::{
 
 /// The key or button to press and release.
 ///
-/// Set this to `Key::KEY_A` to make the effect visible.
+/// Set this to `Key::KEY_A` to make the effect visible in applications.
 const KEY: Key = Key::BTN_TRIGGER_HAPPY1;
 
 fn main() -> io::Result<()> {

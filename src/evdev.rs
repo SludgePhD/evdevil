@@ -309,6 +309,7 @@ impl Evdev {
     }
 
     /// Returns the evdev subsystem version.
+    #[doc(alias = "EVIOCGVERSION")]
     pub fn driver_version(&self) -> io::Result<Version> {
         unsafe {
             let mut version = 0;
@@ -318,6 +319,7 @@ impl Evdev {
     }
 
     /// Fetches device hardware information as an [`InputId`].
+    #[doc(alias = "EVIOCGID")]
     pub fn input_id(&self) -> io::Result<InputId> {
         let mut out = MaybeUninit::uninit();
         unsafe {
@@ -327,6 +329,7 @@ impl Evdev {
     }
 
     /// Fetches the device name.
+    #[doc(alias = "EVIOCGNAME")]
     pub fn name(&self) -> io::Result<String> {
         unsafe { self.fetch_string("EVIOCGNAME", EVIOCGNAME) }
     }
@@ -338,9 +341,11 @@ impl Evdev {
     /// - `PNP0C0C/button/input0`
     /// - `ALSA`
     ///
-    /// Returns [`None`] when the device does not have a physical location (typically because it is
-    /// a virtual device with no associated physical location; however, virtual device *are* allowed
-    /// to set this value to any string).
+    /// Returns [`None`] when the device does not specify a physical location, typically because it
+    /// is a virtual device with no associated physical location.
+    /// However, note that virtual uinput devices *are allowed* to set this value to any string,
+    /// which can be done via [`Builder::with_phys`][crate::uinput::Builder::with_phys].
+    #[doc(alias = "EVIOCGPHYS")]
     pub fn phys(&self) -> io::Result<Option<String>> {
         unsafe {
             match self.fetch_string("EVIOCGPHYS", EVIOCGPHYS) {
@@ -353,8 +358,9 @@ impl Evdev {
 
     /// Fetches the unique identifier of this device.
     ///
-    /// For USB device, this is typically the device serial number (`iSerial`), which is often just
-    /// the empty string.
+    /// For USB devices, this is typically the device serial number (`iSerial`), which is often just
+    /// the empty string (rather than [`None`]).
+    #[doc(alias = "EVIOCGUNIQ")]
     pub fn unique_id(&self) -> io::Result<Option<String>> {
         unsafe {
             match self.fetch_string("EVIOCGUNIQ", EVIOCGUNIQ) {
@@ -366,11 +372,13 @@ impl Evdev {
     }
 
     /// Fetches the set of [`InputProp`]s advertised by the device.
+    #[doc(alias = "EVIOCGPROP")]
     pub fn props(&self) -> io::Result<BitSet<InputProp>> {
         unsafe { self.fetch_bits("EVIOCGPROP", EVIOCGPROP) }
     }
 
     /// Returns the set of supported [`EventType`]s.
+    #[doc(alias = "EVIOCGBIT")]
     pub fn supported_events(&self) -> io::Result<BitSet<EventType>> {
         unsafe { self.fetch_bits("EVIOCGBIT", |len| EVIOCGBIT(0, len)) }
     }
@@ -416,6 +424,7 @@ impl Evdev {
     }
 
     /// Returns the number of force-feedback effects the device can store at the same time.
+    #[doc(alias = "EVIOCGEFFECTS")]
     pub fn supported_ff_effects(&self) -> io::Result<u32> {
         unsafe {
             let mut out = 0;
@@ -433,6 +442,7 @@ impl Evdev {
     ///
     /// Note that many devices don't send the correct values by default, and that userspace
     /// applications can generally override these values via [`Evdev::set_abs_info`].
+    #[doc(alias = "EVIOCGABS")]
     pub fn abs_info(&self, abs: Abs) -> io::Result<AbsInfo> {
         if abs.0 > Abs::MAX.0 {
             return Err(io::Error::new(
@@ -454,6 +464,7 @@ impl Evdev {
     ///
     /// This method should generally not be used by applications, as it modifies globally visible
     /// device properties and can lead to the device not working correctly.
+    #[doc(alias = "EVIOCSABS")]
     pub fn set_abs_info(&self, abs: Abs, info: AbsInfo) -> io::Result<()> {
         if abs.0 > Abs::MAX.0 {
             return Err(io::Error::new(
@@ -478,6 +489,7 @@ impl Evdev {
     /// This will return an error of type [`io::ErrorKind::ResourceBusy`] if the device is already
     /// grabbed by an application (including *this* application; in other words, calling `grab()`
     /// twice in a row will error).
+    #[doc(alias = "EVIOCGRAB")]
     pub fn grab(&self) -> io::Result<()> {
         unsafe {
             self.ioctl("EVIOCGRAB", EVIOCGRAB, 1)?;
@@ -493,6 +505,7 @@ impl Evdev {
     ///
     /// This will return an error of type [`io::ErrorKind::InvalidInput`] is the device is **not**
     /// currently grabbed.
+    #[doc(alias = "EVIOCGRAB")]
     pub fn ungrab(&self) -> io::Result<()> {
         unsafe {
             self.ioctl("EVIOCGRAB", EVIOCGRAB, 0)?;
@@ -503,7 +516,8 @@ impl Evdev {
     /// Revokes device access from this [`Evdev`] handle.
     ///
     /// This prevents this handle from receiving any more input events, and makes writes and ioctls
-    /// (including this one) fail with `ENODEV`.
+    /// (including later calls to this one) fail with `ENODEV`.
+    #[doc(alias = "EVIOCREVOKE")]
     pub fn revoke(&self) -> io::Result<()> {
         unsafe {
             self.ioctl("EVIOCREVOKE", EVIOCREVOKE, 0)?;
@@ -516,6 +530,7 @@ impl Evdev {
     /// If the device doesn't support key repeat, this will return `Ok(None)`.
     /// Whether key repeat is supported can also be determined by checking whether
     /// [`EventType::REP`] is advertised by [`Evdev::supported_events`].
+    #[doc(alias = "EVIOCGREP")]
     pub fn key_repeat(&self) -> io::Result<Option<KeyRepeat>> {
         unsafe {
             let mut rep = [0; 2];
@@ -533,6 +548,18 @@ impl Evdev {
     /// Sets the device's autorepeat settings.
     ///
     /// Also see [`Evdev::key_repeat`].
+    ///
+    /// Note that this is a persistent global property that will affect all applications using this
+    /// device.
+    /// This function should only be called if the user explicitly requested such a change.
+    ///
+    /// # Errors
+    ///
+    /// Not all devices support key repeat. If this method is called on a device that doesn't
+    /// support it, an [`io::ErrorKind::Unsupported`] error may be returned.
+    /// To determine whether key repeat is supported, check whether
+    /// [`EventType::REP`] is advertised by [`Evdev::supported_events`].
+    #[doc(alias = "EVIOCSREP")]
     pub fn set_key_repeat(&self, rep: KeyRepeat) -> io::Result<()> {
         unsafe {
             let rep = [rep.delay() as c_uint, rep.period() as c_uint];
@@ -557,6 +584,7 @@ impl Evdev {
     /// [`Misc::SCAN`] event immediately before a key press or release event.
     ///
     /// Return `Ok(None)` when `index` is out of range.
+    #[doc(alias = "EVIOCGKEYCODE_V2")]
     pub fn keymap_entry(&self, code: Scancode) -> io::Result<Option<KeymapEntry>> {
         unsafe {
             let mut entry = KeymapEntry::zeroed();
@@ -580,6 +608,7 @@ impl Evdev {
     ///
     /// Return `Ok(None)` when `index` is out of range.
     /// This is the only way to determine the number of entries in the keymap.
+    #[doc(alias = "EVIOCGKEYCODE_V2")]
     pub fn keymap_entry_by_index(&self, index: u16) -> io::Result<Option<KeymapEntry>> {
         unsafe {
             let mut entry = KeymapEntry::zeroed();
@@ -595,7 +624,11 @@ impl Evdev {
 
     /// Sets a keymap entry by scancode.
     ///
-    /// This will remap the given [`Scancode`] to produce `keycode`. Use with caution!
+    /// This will remap the given [`Scancode`] to produce `keycode`.
+    ///
+    /// Use with caution! The keymap is a global device property and changes to it will affect
+    /// *every* application using that device.
+    #[doc(alias = "EVIOCSKEYCODE_V2")]
     pub fn set_keymap_entry(&self, scancode: Scancode, keycode: Key) -> io::Result<()> {
         unsafe {
             let mut entry = KeymapEntry::zeroed();
@@ -611,6 +644,10 @@ impl Evdev {
     ///
     /// To find the [`Scancode`] at this index, or the valid indices, use
     /// [`Evdev::keymap_entry_by_index`].
+    ///
+    /// Use with caution! The keymap is a global device property and changes to it will affect
+    /// *every* application using that device.
+    #[doc(alias = "EVIOCSKEYCODE_V2")]
     pub fn set_keymap_entry_by_index(&self, index: u16, keycode: Key) -> io::Result<()> {
         unsafe {
             let mut entry = KeymapEntry::zeroed();
@@ -623,21 +660,25 @@ impl Evdev {
     }
 
     /// Queries the full key state.
+    #[doc(alias = "EVIOCGKEY")]
     pub fn key_state(&self) -> io::Result<BitSet<Key>> {
         unsafe { self.fetch_bits("EVIOCGKEY", EVIOCGKEY) }
     }
 
     /// Queries the state of all device LEDs.
+    #[doc(alias = "EVIOCGLED")]
     pub fn led_state(&self) -> io::Result<BitSet<Led>> {
         unsafe { self.fetch_bits("EVIOCGLED", EVIOCGLED) }
     }
 
     /// Queries the state of all [`Sound`]s.
+    #[doc(alias = "EVIOCGSND")]
     pub fn sound_state(&self) -> io::Result<BitSet<Sound>> {
         unsafe { self.fetch_bits("EVIOCGSND", EVIOCGSND) }
     }
 
     /// Queries the state of all [`Switch`]es.
+    #[doc(alias = "EVIOCGSW")]
     pub fn switch_state(&self) -> io::Result<BitSet<Switch>> {
         unsafe { self.fetch_bits("EVIOCGSW", EVIOCGSW) }
     }
@@ -666,7 +707,8 @@ impl Evdev {
 
     /// Blocks the calling thread until [`Evdev::is_readable`] would return `true`.
     ///
-    /// This will block even if the device is in non-blocking mode (via [`Evdev::set_nonblocking`]).
+    /// This will block even if the device has been put in non-blocking mode via
+    /// [`Evdev::set_nonblocking`].
     /// For checking whether events can be read from the device without blocking, use
     /// [`Evdev::is_readable`], which will *never* block.
     ///
@@ -686,11 +728,11 @@ impl Evdev {
     /// [`RawEvents`] can be used (correctly) if the user is only interested in events pertaining to
     /// relative axes ([`RelEvent`][crate::event::RelEvent]), since those have no state.
     ///
-    /// If the [`Evdev`] is in non-blocking mode, the iterator will return [`None`] when reading
-    /// fails with a [`WouldBlock`][io::ErrorKind::WouldBlock] error (and later calls to
-    /// [`Iterator::next`] may return [`Some`] again).
-    /// If the device is in blocking mode, [`RawEvents::next`] will block until an event is
-    /// available.
+    /// - If the device is in blocking mode, [`RawEvents::next`] will block until an event is
+    ///   available.
+    /// - If the [`Evdev`] is in non-blocking mode, the iterator will return [`None`] when reading
+    ///   fails with a [`io::ErrorKind::WouldBlock`] error (and later calls to
+    ///   [`Iterator::next`] may return [`Some`] again).
     ///
     /// Reading events individually can be slow, since every event incurs a system call.
     /// You can use [`Evdev::read_events`] to read them in larger batches.
@@ -707,10 +749,10 @@ impl Evdev {
     /// This may read multiple events at once, which is more efficient than using
     /// [`Evdev::raw_events`] to read them one-by-one.
     ///
-    /// This method will block until at least 1 event is available when the [`Evdev`] is in blocking
-    /// mode.
-    /// If the device is in non-blocking mode, this method will return an error of type
-    /// [`io::ErrorKind::WouldBlock`] when there are no events to read.
+    /// - If the device is in blocking mode, this method will block until at least 1 event can be
+    ///   read.
+    /// - If the device is in non-blocking mode, this method will return an error of type
+    ///   [`io::ErrorKind::WouldBlock`] when there are no events to read.
     ///
     /// **Note**: If this method is used while the device is wrapped in an [`EventReader`], the
     /// [`EventReader`] will miss events and go out of sync with the device state. Don't do that.
@@ -728,6 +770,7 @@ impl Evdev {
     /// [`Evdev::supported_ff_features`] for the supported force-feedback feature set.
     ///
     /// Uploaded effects will stay in device memory until removed via [`Evdev::erase_ff_effect`].
+    #[doc(alias = "EVIOCSFF")]
     pub fn upload_ff_effect<'a>(
         &self,
         effect: impl Into<ff::Effect<'a>>,
@@ -746,6 +789,7 @@ impl Evdev {
     }
 
     /// Deletes a previously uploaded force-feedback effect.
+    #[doc(alias = "EVIOCRMFF")]
     pub fn erase_ff_effect(&self, id: ff::EffectId) -> io::Result<()> {
         unsafe {
             self.ioctl("EVIOCRMFF", EVIOCRMFF, id.0 as c_int)?;
@@ -810,10 +854,10 @@ impl Evdev {
     /// it was opened with write permission.
     /// [`Evdev::open`] will *try* to open the device with read+write permissions, and fall back to
     /// read-only mode if the user does not have write permission for the evdev files.
-    /// If that also fails, one last attempt to open in *write-only* mode is made, to cover certain
-    /// misconfigured systems.
-    /// If the [`Evdev`] does not have write permission, this method will return an error of type
-    /// [`io::ErrorKind::PermissionDenied`].
+    /// If that also fails, one last attempt to open in *write-only* mode is made.
+    ///
+    /// If the [`Evdev`] does not have write permission, this method will fail with a
+    /// [`io::ErrorKind::PermissionDenied`] error.
     pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
         unsafe {
             let bytes = slice::from_raw_parts(
@@ -826,8 +870,9 @@ impl Evdev {
 
     /// Sets the [`clockid_t`] to be used for event timestamps.
     ///
-    /// `evdev` doesn't support *all* clocks. This method will fail with
-    /// [`io::ErrorKind::InvalidInput`] when a `clockid` is passed that the kernel doesn't like.
+    /// `evdev` doesn't support *all* clocks. This method will fail with an
+    /// [`io::ErrorKind::InvalidInput`] error when a `clockid` is passed that the kernel doesn't
+    /// like.
     /// At least [`libc::CLOCK_REALTIME`] and [`libc::CLOCK_MONOTONIC`] seem to be supported.
     ///
     /// By default, [`libc::CLOCK_REALTIME`] is used, which is the same clock source used by
@@ -837,6 +882,7 @@ impl Evdev {
     /// cleared and a [`Syn::DROPPED`] event will be enqueued.
     ///
     /// [`Syn::DROPPED`]: crate::event::Syn::DROPPED
+    #[doc(alias = "EVIOCSCLOCKID")]
     pub fn set_clockid(&self, clockid: clockid_t) -> io::Result<()> {
         unsafe {
             self.ioctl("EVIOCSCLOCKID", EVIOCSCLOCKID, &clockid)?;
@@ -892,6 +938,7 @@ impl Evdev {
     }
 
     /// Fetches the current event mask.
+    #[doc(alias = "EVIOCGMASK")]
     pub fn event_mask(&self) -> io::Result<BitSet<EventType>> {
         self.fetch_mask(EventType::from_raw(0))
     }
@@ -900,8 +947,9 @@ impl Evdev {
     ///
     /// Only [`EventType`]s included in `mask` will be forwarded to this [`Evdev`] handle.
     ///
-    /// **Note**: [`EventType::SYN`] cannot be the only enabled event. At least one "real" (non-SYN)
-    /// event has to be enabled, or **no** events will be forwarded to the program.
+    /// **Note**: [`EventType::SYN`] cannot be the only enabled event type. At least one "real"
+    /// (non-SYN) event has to be enabled, or **no** events will be forwarded to the program.
+    #[doc(alias = "EVIOCSMASK")]
     pub fn set_event_mask(&self, mask: &BitSet<EventType>) -> io::Result<()> {
         self.set_mask(EventType::from_raw(0), mask)
     }
@@ -957,6 +1005,8 @@ impl Evdev {
 ///
 /// This holds no state and performs no batching, so it can be created at will via
 /// [`Evdev::raw_events`].
+/// However, reading events this way is rather slow, so [`Evdev::read_events`] may be preferable
+/// if performance is important.
 ///
 /// [`UinputDevice`]: crate::uinput::UinputDevice
 /// [`UinputDevice::events`]: crate::uinput::UinputDevice::events

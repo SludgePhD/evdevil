@@ -13,6 +13,9 @@ use crate::event::Abs;
 pub struct AbsInfo(pub(crate) input_absinfo);
 
 impl AbsInfo {
+    /// Creates a new [`AbsInfo`] with a minimum and maximum value.
+    ///
+    /// All other fields start out as zero.
     #[inline]
     pub const fn new(minimum: i32, maximum: i32) -> Self {
         Self(input_absinfo {
@@ -20,6 +23,52 @@ impl AbsInfo {
             maximum,
             ..unsafe { mem::zeroed() }
         })
+    }
+
+    /// Returns a copy of `self` with the given axis value.
+    ///
+    /// The value is not clamped to the minimum/maximum or modified in any other way.
+    #[inline]
+    pub const fn with_raw_value(mut self, value: i32) -> Self {
+        self.0.value = value;
+        self
+    }
+
+    /// Returns a copy of `self` with the given minimum.
+    #[inline]
+    pub const fn with_minimum(mut self, minimum: i32) -> Self {
+        self.0.minimum = minimum;
+        self
+    }
+
+    /// Returns a copy of `self` with the given maximum.
+    #[inline]
+    pub const fn with_maximum(mut self, maximum: i32) -> Self {
+        self.0.maximum = maximum;
+        self
+    }
+
+    /// Returns a copy of `self` with the given fuzz value.
+    #[inline]
+    pub const fn with_fuzz(mut self, fuzz: i32) -> Self {
+        self.0.fuzz = fuzz;
+        self
+    }
+
+    /// Returns a copy of `self` with the given flat value.
+    #[inline]
+    pub const fn with_flat(mut self, flat: i32) -> Self {
+        self.0.flat = flat;
+        self
+    }
+
+    /// Returns a copy of `self` with the given axis resolution.
+    ///
+    /// See [`AbsInfo::resolution`] for more information.
+    #[inline]
+    pub const fn with_resolution(mut self, resolution: i32) -> Self {
+        self.0.resolution = resolution;
+        self
     }
 
     /// Returns the axis' current value, clamped to the valid range.
@@ -39,54 +88,32 @@ impl AbsInfo {
         self.0.value
     }
 
-    #[inline]
-    pub const fn with_raw_value(mut self, value: i32) -> Self {
-        self.0.value = value;
-        self
-    }
-
+    /// Returns the minimum value of this axis.
     #[inline]
     pub const fn minimum(&self) -> i32 {
         self.0.minimum
     }
 
-    #[inline]
-    pub const fn with_minimum(mut self, minimum: i32) -> Self {
-        self.0.minimum = minimum;
-        self
-    }
-
+    /// Returns the minimum value of this axis.
     #[inline]
     pub const fn maximum(&self) -> i32 {
         self.0.maximum
     }
 
-    #[inline]
-    pub const fn with_maximum(mut self, maximum: i32) -> Self {
-        self.0.maximum = maximum;
-        self
-    }
-
+    /// Returns the *fuzz* value of the axis.
+    ///
+    /// The *fuzz* value is used by the kernel to filter out noise.
     #[inline]
     pub const fn fuzz(&self) -> i32 {
         self.0.fuzz
     }
 
-    #[inline]
-    pub const fn with_fuzz(mut self, fuzz: i32) -> Self {
-        self.0.fuzz = fuzz;
-        self
-    }
-
+    /// Returns the *flat* value of the axis.
+    ///
+    /// The *flat* value configures the axis deadzone.
     #[inline]
     pub const fn flat(&self) -> i32 {
         self.0.flat
-    }
-
-    #[inline]
-    pub const fn with_flat(mut self, flat: i32) -> Self {
-        self.0.flat = flat;
-        self
     }
 
     /// Returns the resolution of this axis.
@@ -102,15 +129,12 @@ impl AbsInfo {
     /// units for the main X/Y/Z axes are in **units/g** instead.
     ///
     /// Rotational axes ([`Abs::RX`], [`Abs::RY`], [`Abs::RZ`]) use **units/radian**.
+    ///
+    /// **Note**: This value is commonly reported incorrectly, so device-specific overrides might
+    /// be needed.
     #[inline]
     pub const fn resolution(&self) -> i32 {
         self.0.resolution
-    }
-
-    #[inline]
-    pub const fn with_resolution(mut self, resolution: i32) -> Self {
-        self.0.resolution = resolution;
-        self
     }
 }
 

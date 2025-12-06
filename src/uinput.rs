@@ -61,6 +61,7 @@ impl fmt::Debug for AbsSetup {
 }
 
 impl AbsSetup {
+    /// Creates a new [`AbsSetup`] value that configures the given [`Abs`] axis.
     pub const fn new(abs: Abs, abs_info: AbsInfo) -> Self {
         AbsSetup(uinput_abs_setup {
             code: abs.raw(),
@@ -68,10 +69,12 @@ impl AbsSetup {
         })
     }
 
+    /// Returns the [`Abs`] axis this [`AbsSetup`] is configuring.
     pub const fn abs(&self) -> Abs {
         Abs::from_raw(self.0.code)
     }
 
+    /// Returns the [`AbsInfo`] configuration that is applied to the [`Abs`] axis.
     pub const fn abs_info(&self) -> &AbsInfo {
         // Safety: `AbsInfo` is a `#[repr(transparent)]` wrapper
         unsafe { mem::transmute(&self.0.absinfo) }
@@ -112,6 +115,7 @@ impl Builder {
     }
 
     /// Configures the device's hardware IDs.
+    // FIXME: called `with_device_id` but takes an `InputId` – the evdev mirror is called `Evdev::input_id`
     pub fn with_device_id(mut self, id: InputId) -> io::Result<Self> {
         self.setup.id = id.0;
         Ok(self)
@@ -126,13 +130,15 @@ impl Builder {
     /// consumers.
     ///
     /// [`Evdev::phys`]: crate::Evdev::phys
+    #[doc(alias = "UI_SET_PHYS")]
     pub fn with_phys(self, path: &str) -> io::Result<Self> {
         self.with_phys_cstr(&CString::new(path).unwrap())
     }
 
     /// Sets the physical path of the device to a [`CStr`].
     ///
-    /// It is typically easier to use [`Builder::with_phys`] instead.
+    /// It is typically easier to use [`Builder::with_phys`] instead, but this method avoids an
+    /// allocation.
     pub fn with_phys_cstr(self, path: &CStr) -> io::Result<Self> {
         unsafe {
             self.device
@@ -145,6 +151,7 @@ impl Builder {
     /// Sets the given [`InputProp`]s for the device.
     ///
     /// [`InputProp`]s can be used to advertise a specific type of device, like a drawing tablet.
+    #[doc(alias = "UI_SET_PROPBIT")]
     pub fn with_props(self, props: impl IntoIterator<Item = InputProp>) -> io::Result<Self> {
         for prop in props {
             unsafe {
@@ -156,6 +163,7 @@ impl Builder {
     }
 
     /// Enables the given list of [`Key`]s to be reported by the device.
+    #[doc(alias = "UI_SET_KEYBIT")]
     pub fn with_keys(self, keys: impl IntoIterator<Item = Key>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_KEYBIT",
@@ -167,6 +175,7 @@ impl Builder {
     }
 
     /// Enables the given list of [`Rel`]ative axes to be reported by the device.
+    #[doc(alias = "UI_SET_RELBIT")]
     pub fn with_rel_axes(self, rel: impl IntoIterator<Item = Rel>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_RELBIT",
@@ -178,6 +187,7 @@ impl Builder {
     }
 
     /// Enables the given list of [`Misc`] events to be reported by the device.
+    #[doc(alias = "UI_SET_MSCBIT")]
     pub fn with_misc(self, misc: impl IntoIterator<Item = Misc>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_MSCBIT",
@@ -192,6 +202,7 @@ impl Builder {
     ///
     /// LEDs may be controlled by either the `uinput` or `evdev` side, by writing the appropriate
     /// event to the stream.
+    #[doc(alias = "UI_SET_LEDBIT")]
     pub fn with_leds(self, leds: impl IntoIterator<Item = Led>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_LEDBIT",
@@ -206,6 +217,7 @@ impl Builder {
     ///
     /// Sounds are typically played by an [`Evdev`][crate::Evdev] handle by writing the appropriate
     /// event to the stream.
+    #[doc(alias = "UI_SET_SNDBIT")]
     pub fn with_sounds(self, sounds: impl IntoIterator<Item = Sound>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_SNDBIT",
@@ -217,6 +229,7 @@ impl Builder {
     }
 
     /// Enables the given list of [`Switch`]es to be reported by the device.
+    #[doc(alias = "UI_SET_SWBIT")]
     pub fn with_switches(self, switches: impl IntoIterator<Item = Switch>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_SWBIT",
@@ -231,6 +244,7 @@ impl Builder {
     ///
     /// The [`AbsInfo`] associated with an axis may be changed by an [`Evdev`][crate::Evdev] client
     /// via [`Evdev::set_abs_info`][crate::Evdev::set_abs_info].
+    #[doc(alias = "UI_ABS_SETUP")]
     pub fn with_abs_axes(self, axes: impl IntoIterator<Item = AbsSetup>) -> io::Result<Self> {
         self.enable_event(EventType::ABS)?;
         for setup in axes {
@@ -259,6 +273,7 @@ impl Builder {
     /// If you call this method, you also have to call [`Builder::with_ff_effects_max`] to configure
     /// the maximum number of force-feedback effects the device can accept, or the functionality
     /// won't work.
+    #[doc(alias = "UI_SET_FFBIT")]
     pub fn with_ff_features(self, feat: impl IntoIterator<Item = ff::Feature>) -> io::Result<Self> {
         self.enable_codes(
             "UI_SET_FFBIT",
@@ -325,6 +340,7 @@ impl Builder {
     ///
     /// - `name`: The name of the device. Should be ASCII, and must not be longer than 79 bytes, or
     ///   this method will return an error.
+    #[doc(alias = "UI_DEV_SETUP")]
     pub fn build(mut self, name: &str) -> io::Result<UinputDevice> {
         if name.len() >= UINPUT_MAX_NAME_SIZE {
             return Err(io::Error::new(

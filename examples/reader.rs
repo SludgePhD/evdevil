@@ -1,3 +1,5 @@
+//! Uses the [`evdevil::EventReader`] API to read and print device events.
+
 use std::{env, io, process};
 
 use evdevil::Evdev;

@@ -1,3 +1,5 @@
+//! A simple rumble effect demo.
+
 use std::{
     env,
     io::{self, stdin},

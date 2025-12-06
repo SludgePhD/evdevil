@@ -1,3 +1,6 @@
+//! This example uses [`Evdev::grab`] to prevent other applications from receiving events for a few
+//! seconds.
+
 use std::{env, io, process, thread, time::Duration};
 
 use evdevil::Evdev;
