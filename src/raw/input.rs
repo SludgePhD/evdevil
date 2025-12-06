@@ -14,6 +14,13 @@ pub struct input_event {
     pub value: i32,
 }
 
+// We cast `&[InputEvent]` to `&[u8]` to write it to the device, so it must not contain any padding.
+const _: () = assert!(
+    size_of::<input_event>()
+        == size_of::<timeval>() + size_of::<u16>() + size_of::<u16>() + size_of::<i32>(),
+    "`input_event` contains padding on this platform (this is UB)"
+);
+
 impl PartialEq for input_event {
     fn eq(&self, other: &Self) -> bool {
         self.time.tv_sec == other.time.tv_sec
