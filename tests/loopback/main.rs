@@ -247,7 +247,7 @@ impl Tester {
     }
 }
 
-const DEVICE_ID: InputId = InputId::new(Bus::VIRTUAL, 9876, 12345, 1010);
+const INPUT_ID: InputId = InputId::new(Bus::VIRTUAL, 9876, 12345, 1010);
 
 const PHYS: &str = "blablablaPHYS";
 
@@ -291,7 +291,7 @@ const FF_FEATURES: &[Feature] = &[Feature::RUMBLE];
 fn setup_uinput_device() -> io::Result<UinputDevice> {
     // Create a Buddhist computer peripheral (one with everything)
     let dev = UinputDevice::builder()?
-        .with_device_id(DEVICE_ID)?
+        .with_input_id(INPUT_ID)?
         .with_ff_effects_max(FF_EFFECTS)?
         .with_ff_features(FF_FEATURES.iter().copied())?
         .with_phys(PHYS)?
@@ -321,10 +321,10 @@ fn setup_uinput_device() -> io::Result<UinputDevice> {
 fn test_device_id() -> io::Result<()> {
     let tester = Tester::get();
     let devid = tester.evdev().input_id()?;
-    assert_eq!(devid.bus(), DEVICE_ID.bus());
-    assert_eq!(devid.vendor(), DEVICE_ID.vendor());
-    assert_eq!(devid.product(), DEVICE_ID.product());
-    assert_eq!(devid.version(), DEVICE_ID.version());
+    assert_eq!(devid.bus(), INPUT_ID.bus());
+    assert_eq!(devid.vendor(), INPUT_ID.vendor());
+    assert_eq!(devid.product(), INPUT_ID.product());
+    assert_eq!(devid.version(), INPUT_ID.version());
     Ok(())
 }
 
