@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.3.4
+
+### Improvements
+
+- Add a few missing getters for force-feedback types.
+- Derive `PartialOrd` and `Ord` for `EffectId`.
+- Rename `with_device_id` to `with_input_id` (with deprecation).
+- Rename the `ForceFeedbackEvent` constructors to more evocative names (with deprecation).
+- Add `#[inline]` to more functions.
+
+### Fixes
+
+- Fix a bug where uninitialized bytes would be unsoundly reinterpreted as `&[u8]` when reading events from a `UinputDevice`.
+- Fix the `PartialEq` implementation of `Periodic` not comparing custom waveform data.
+
+### Other changes
+
+- Improved documentation a bit.
+- Deduplicated the internal implementation so that all event I/O happens in two root functions.
+- Audited the crate for Undefined Behavior.
+- Run CI on aarch64 Linux (GNU and musl).
+- Add the crate to the `os::freebsd-apis` category on crates.io.
+
 ## v0.3.3
 
 - Try to fix the docs.rs render.
