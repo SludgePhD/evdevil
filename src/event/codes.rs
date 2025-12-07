@@ -50,7 +50,7 @@ impl fmt::Debug for InputProp {
 }
 
 ffi_enum! {
-    /// Types of [`InputEvent`][crate::event::InputEvent]s
+    /// Types of [`InputEvent`][crate::event::InputEvent]s.
     pub enum EventType: u16 {
         /// [`SynEvent`][crate::event::SynEvent]: Synchronization event.
         SYN = 0x00,

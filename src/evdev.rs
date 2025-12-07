@@ -816,7 +816,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn control_ff(&self, effect: ff::EffectId, active: bool) -> io::Result<()> {
-        self.write(&[ForceFeedbackEvent::new_control_effect(effect, active).into()])
+        self.write(&[ForceFeedbackEvent::control_effect(effect, active).into()])
     }
 
     /// Sets the global gain for force-feedback effects.
@@ -828,7 +828,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn set_ff_gain(&self, gain: u16) -> io::Result<()> {
-        self.write(&[ForceFeedbackEvent::new_set_gain(gain).into()])
+        self.write(&[ForceFeedbackEvent::control_gain(gain).into()])
     }
 
     /// Controls the autocenter feature for force-feedback effects.
@@ -840,7 +840,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn set_ff_autocenter(&self, autocenter: u16) -> io::Result<()> {
-        self.write(&[ForceFeedbackEvent::new_set_autocenter(autocenter).into()])
+        self.write(&[ForceFeedbackEvent::control_autocenter(autocenter).into()])
     }
 
     /// Writes events to the device.

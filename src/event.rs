@@ -225,7 +225,7 @@ impl InputEvent {
 
     /// Returns the raw *event code* field.
     ///
-    /// The *code* of an [`InputEvent`] generally describes what entity the event is about.
+    /// The *code* of an [`InputEvent`] generally describes what entity the event is describing.
     /// Depending on the type of event, it can describe a key, axis, sound, LED, or other entity.
     #[inline]
     pub fn raw_code(&self) -> u16 {
@@ -346,7 +346,14 @@ event_wrappers! {
     pub struct SoundEvent in Sound;
     /// Internal events sent to [`UinputDevice`]s.
     ///
+    /// When an [`Evdev`][crate::Evdev] holder uploads or erases a force-feedback effect, the
+    /// [`UinputDevice`] will be notified by receiving a [`UinputEvent`].
+    /// It should then pass that event to [`UinputDevice::ff_upload`] or [`UinputDevice::ff_erase`]
+    /// to perform the requested operation.
+    ///
     /// [`UinputDevice`]: crate::uinput::UinputDevice
+    /// [`UinputDevice::ff_upload`]: crate::uinput::UinputDevice::ff_upload
+    /// [`UinputDevice::ff_erase`]: crate::uinput::UinputDevice::ff_erase
     pub struct UinputEvent in Uinput;
     /// Starts or stops previously uploaded force-feedback effects.
     pub struct ForceFeedbackEvent in ForceFeedback;
@@ -662,9 +669,13 @@ impl fmt::Debug for UinputEvent {
 }
 
 impl ForceFeedbackEvent {
-    /// Creates a [`ForceFeedbackEvent`] that starts or stops an effect.
+    /// Creates a [`ForceFeedbackEvent`] that controls an effect.
+    ///
+    /// The effect has to be uploaded via [`Evdev::upload_ff_effect`] first.
+    ///
+    /// [`Evdev::upload_ff_effect`]: crate::Evdev::upload_ff_effect
     #[inline]
-    pub fn new_control_effect(effect: EffectId, active: bool) -> Self {
+    pub fn control_effect(effect: EffectId, active: bool) -> Self {
         Self(InputEvent::new(
             EventType::FF,
             effect.0 as u16,
@@ -672,9 +683,13 @@ impl ForceFeedbackEvent {
         ))
     }
 
-    // TODO: naming of these ctors
+    /// Creates a [`ForceFeedbackEvent`] that controls the master effect gain.
+    ///
+    /// The `gain` value encodes the gain as a fraction of 65535.
+    ///
+    /// This only does something if the device advertises support for [`ff::Feature::GAIN`].
     #[inline]
-    pub fn new_set_gain(gain: u16) -> Self {
+    pub fn control_gain(gain: u16) -> Self {
         Self(InputEvent::new(
             EventType::FF,
             ff::Feature::GAIN.0,
@@ -682,8 +697,13 @@ impl ForceFeedbackEvent {
         ))
     }
 
+    /// Creates a [`ForceFeedbackEvent`] that controls the autocenter strength.
+    ///
+    /// The `autocenter` value encodes the autocenter power as a fraction of 65535.
+    ///
+    /// This only does something if the device advertises support for [`ff::Feature::AUTOCENTER`].
     #[inline]
-    pub fn new_set_autocenter(autocenter: u16) -> Self {
+    pub fn control_autocenter(autocenter: u16) -> Self {
         Self(InputEvent::new(
             EventType::FF,
             ff::Feature::AUTOCENTER.0,
@@ -697,11 +717,28 @@ impl ForceFeedbackEvent {
         const FF_AUTOCENTER: u16 = ff::Feature::AUTOCENTER.0;
 
         match self.raw_code() {
-            id if id < FF_GAIN => Some(ForceFeedbackCode::ControlEffect(EffectId(id as _))),
+            id if id < FF_GAIN => Some(ForceFeedbackCode::ControlEffect(EffectId(id as i16))),
             FF_GAIN => Some(ForceFeedbackCode::SetGain),
             FF_AUTOCENTER => Some(ForceFeedbackCode::SetAutocenter),
             _ => None,
         }
+    }
+
+    /// Creates a [`ForceFeedbackEvent`] that starts or stops an effect.
+    #[inline]
+    #[deprecated(note = "renamed to `control_effect`", since = "0.3.4")]
+    pub fn new_control_effect(effect: EffectId, active: bool) -> Self {
+        Self::control_effect(effect, active)
+    }
+    #[inline]
+    #[deprecated(note = "renamed to `control_gain`", since = "0.3.4")]
+    pub fn new_set_gain(gain: u16) -> Self {
+        Self::control_gain(gain)
+    }
+    #[inline]
+    #[deprecated(note = "renamed to `control_autocenter`", since = "0.3.4")]
+    pub fn new_set_autocenter(autocenter: u16) -> Self {
+        Self::control_autocenter(autocenter)
     }
 }
 

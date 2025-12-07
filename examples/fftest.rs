@@ -72,7 +72,7 @@ fn main() -> io::Result<()> {
     for line in stdin().lines() {
         let _line = line?;
         active = !active;
-        evdev.write(&[ForceFeedbackEvent::new_control_effect(id, active).into()])?;
+        evdev.write(&[ForceFeedbackEvent::control_effect(id, active).into()])?;
     }
 
     Ok(())
