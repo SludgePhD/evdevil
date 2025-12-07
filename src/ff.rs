@@ -157,6 +157,10 @@ ffi_enum! {
         SINE     = Feature::SINE.0,
         SAW_UP   = Feature::SAW_UP.0,
         SAW_DOWN = Feature::SAW_DOWN.0,
+
+        /// Custom waveform data.
+        ///
+        /// This can be created via [`Periodic::custom`].
         CUSTOM   = Feature::CUSTOM.0,
     }
 }
@@ -680,7 +684,12 @@ impl fmt::Debug for Rumble {
 }
 
 /// A periodic waveform effect.
-#[derive(Clone, Copy, PartialEq, Eq)]
+///
+/// The `'a` lifetime is only relevant when the effect uses a custom waveform.
+/// It indicates the lifetime of that custom waveform data (which the [`Periodic`] struct borrows
+/// from).
+/// For all other types of [`Periodic`] events, the lifetime can be `'static`.
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct Periodic<'a> {
     raw: ff_periodic_effect,
@@ -701,9 +710,16 @@ impl<'a> Periodic<'a> {
         p
     }
 
+    /// Creates a custom waveform effect.
+    ///
+    /// The device has to advertise support for [`Feature::CUSTOM`] for this to work.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `data` is longer than [`u32::MAX`] elements.
+    /// In practice, no device will accept a waveform that large anyways.
     #[inline]
     pub fn custom(data: &'a [i16]) -> Periodic<'a> {
-        // TODO: seems like a bad idea to expose a near-useless feature like this
         let mut p = Periodic {
             raw: unsafe { mem::zeroed() },
             _p: PhantomData,
@@ -714,6 +730,7 @@ impl<'a> Periodic<'a> {
         p
     }
 
+    /// Returns the type of [`Waveform`] described by this [`Periodic`] effect.
     #[inline]
     pub fn waveform(&self) -> Waveform {
         Waveform(self.raw.waveform)
@@ -771,6 +788,20 @@ impl<'a> Periodic<'a> {
         }
     }
 }
+
+impl PartialEq for Periodic<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        // This has to be done by hand because the derived impl wouldn't compare the waveform data.
+        self.waveform() == other.waveform()
+            && self.period() == other.period()
+            && self.magnitude() == other.magnitude()
+            && self.offset() == other.offset()
+            && self.phase() == other.phase()
+            && self.envelope() == other.envelope()
+            && self.custom_data() == other.custom_data()
+    }
+}
+impl Eq for Periodic<'_> {}
 
 impl fmt::Debug for Periodic<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1124,5 +1155,15 @@ mod tests {
         assert::<EffectKind<'static>>();
         assert::<EffectType>();
         assert::<EffectId>();
+    }
+
+    #[test]
+    fn custom_eq() {
+        // These `Periodic` effects point to different waveforms, but those waveforms are equal.
+        static BUF: &[i16] = &[0, 1, 2, 3, 2, 1, 0];
+        let a = Periodic::custom(&BUF[0..1]); // &[0]
+        let b = Periodic::custom(&BUF[6..7]); // &[0]
+
+        assert_eq!(a, b);
     }
 }
