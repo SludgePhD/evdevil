@@ -3,7 +3,7 @@ use std::{
     ffi::{c_char, c_int, c_uint, c_void},
     fmt,
     fs::File,
-    io::{self, Read as _, Write},
+    io::{self, Write},
     mem::MaybeUninit,
     os::{
         fd::{AsFd, AsRawFd, IntoRawFd},
@@ -33,6 +33,7 @@ use crate::{
         EVIOCGUNIQ, EVIOCGVERSION, EVIOCREVOKE, EVIOCRMFF, EVIOCSABS, EVIOCSCLOCKID, EVIOCSFF,
         EVIOCSKEYCODE_V2, EVIOCSMASK, EVIOCSREP, INPUT_KEYMAP_BY_INDEX, input_mask,
     },
+    read_raw,
     reader::EventReader,
     util::{block_until_readable, is_readable, set_nonblocking},
 };
@@ -1029,12 +1030,4 @@ impl Iterator for RawEvents<'_> {
             Ok(n) => unreachable!("read {n} events, but can only hold 1"),
         }
     }
-}
-
-fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
-    let bptr = dest.as_mut_ptr().cast::<u8>();
-    let byte_buf = unsafe { slice::from_raw_parts_mut(bptr, size_of::<InputEvent>() * dest.len()) };
-    let bytes = file.read(byte_buf)?;
-    debug_assert_eq!(bytes % size_of::<InputEvent>(), 0);
-    Ok(bytes / size_of::<InputEvent>())
 }

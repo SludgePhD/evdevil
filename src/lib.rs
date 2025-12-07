@@ -27,6 +27,12 @@ pub mod uinput;
 mod util;
 mod version;
 
+use std::{
+    fs::File,
+    io::{self, Read},
+    slice,
+};
+
 pub use abs_info::AbsInfo;
 #[doc(inline)]
 pub use enumerate::{enumerate, enumerate_hotplug};
@@ -39,6 +45,20 @@ pub use keymap_entry::{KeymapEntry, Scancode};
 pub use reader::EventReader;
 pub use slot::Slot;
 pub use version::Version;
+
+use crate::event::InputEvent;
+
+/// Reads raw events from an `Evdev` or a `UinputDevice` into `dest`.
+///
+/// Returns the number of events that were read.
+fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
+    let bptr = dest.as_mut_ptr().cast::<u8>();
+    // Safety: this requires that `InputEvent` contains no padding, which is tested where `input_event` is defined.
+    let byte_buf = unsafe { slice::from_raw_parts_mut(bptr, size_of::<InputEvent>() * dest.len()) };
+    let bytes = file.read(byte_buf)?;
+    debug_assert_eq!(bytes % size_of::<InputEvent>(), 0);
+    Ok(bytes / size_of::<InputEvent>())
+}
 
 #[cfg(test)]
 mod tests {

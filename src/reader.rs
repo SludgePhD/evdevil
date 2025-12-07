@@ -11,13 +11,10 @@ mod tests;
 
 use std::{
     collections::VecDeque,
-    fmt,
-    fs::File,
-    io::{self, Read},
+    fmt, io,
     iter::{self, FusedIterator, zip},
     ops::RangeInclusive,
     os::fd::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, RawFd},
-    slice,
     sync::Arc,
     time::{Instant, SystemTime},
 };
@@ -31,6 +28,7 @@ use crate::{
         Sound, SoundEvent, Switch, SwitchEvent, Syn, SynEvent,
     },
     raw::input::EVIOCGMTSLOTS,
+    read_raw,
 };
 
 const MAX_MT_SLOTS: i32 = 60;
@@ -986,14 +984,6 @@ impl EventReader {
     fn next_event(&mut self) -> InputEvent {
         self.imp.next_event()
     }
-}
-
-fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
-    let bptr = dest.as_mut_ptr().cast::<u8>();
-    let byte_buf = unsafe { slice::from_raw_parts_mut(bptr, size_of::<InputEvent>() * dest.len()) };
-    let bytes = file.read(byte_buf)?;
-    debug_assert_eq!(bytes % size_of::<InputEvent>(), 0);
-    Ok(bytes / size_of::<InputEvent>())
 }
 
 fn report_or_dropped(ev: &InputEvent) -> bool {
