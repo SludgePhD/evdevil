@@ -929,8 +929,12 @@ pub struct ForceFeedbackErase(uinput_ff_erase);
 
 impl ForceFeedbackErase {
     /// Returns the [`EffectId`] of the effect that should be erased.
+    #[inline]
     pub fn effect_id(&self) -> EffectId {
-        EffectId(self.0.effect_id.try_into().unwrap())
+        // NOTE: the effect ID in the `ff_effect` struct is an `i16`, but in the `uinput_ff_erase`
+        // it's stored as a `u32`. The latter is always under control of the kernel, so we should
+        // never see a value that doesn't fit in an `i16` here.
+        EffectId(self.0.effect_id as i16)
     }
 }
 
