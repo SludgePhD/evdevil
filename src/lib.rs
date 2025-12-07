@@ -29,7 +29,7 @@ mod version;
 
 use std::{
     fs::File,
-    io::{self, Read},
+    io::{self, Read, Write},
     slice,
 };
 
@@ -48,7 +48,7 @@ pub use version::Version;
 
 use crate::event::InputEvent;
 
-/// Reads raw events from an `Evdev` or a `UinputDevice` into `dest`.
+/// Reads raw events from an `Evdev` or a `UinputDevice` (`file`) into `dest`.
 ///
 /// Returns the number of events that were read.
 fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
@@ -58,6 +58,15 @@ fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
     let bytes = file.read(byte_buf)?;
     debug_assert_eq!(bytes % size_of::<InputEvent>(), 0);
     Ok(bytes / size_of::<InputEvent>())
+}
+
+/// Writes all events from `events` to an `Evdev` or a `UinputDevice` represented by `File`.
+fn write_raw(mut file: &File, events: &[InputEvent]) -> io::Result<()> {
+    let bptr = events.as_ptr().cast::<u8>();
+    // Safety: this requires that `InputEvent` contains no padding, which is tested where `input_event` is defined.
+    let bytes = unsafe { slice::from_raw_parts(bptr, size_of::<InputEvent>() * events.len()) };
+    file.write_all(bytes)?;
+    Ok(())
 }
 
 #[cfg(test)]

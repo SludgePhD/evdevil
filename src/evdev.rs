@@ -3,7 +3,7 @@ use std::{
     ffi::{c_char, c_int, c_uint, c_void},
     fmt,
     fs::File,
-    io::{self, Write},
+    io,
     mem::MaybeUninit,
     os::{
         fd::{AsFd, AsRawFd, IntoRawFd},
@@ -36,6 +36,7 @@ use crate::{
     read_raw,
     reader::EventReader,
     util::{block_until_readable, is_readable, set_nonblocking},
+    write_raw,
 };
 
 /// A handle to an *event device*.
@@ -861,13 +862,7 @@ impl Evdev {
     /// If the [`Evdev`] does not have write permission, this method will fail with a
     /// [`io::ErrorKind::PermissionDenied`] error.
     pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
-        unsafe {
-            let bytes = slice::from_raw_parts(
-                events.as_ptr().cast(),
-                events.len() * size_of::<InputEvent>(),
-            );
-            (&self.file).write_all(bytes)
-        }
+        write_raw(&self.file, events)
     }
 
     /// Sets the [`clockid_t`] to be used for event timestamps.

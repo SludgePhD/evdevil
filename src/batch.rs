@@ -1,11 +1,6 @@
-use std::{
-    fmt,
-    fs::File,
-    io::{self, Write},
-    slice,
-};
+use std::{fmt, fs::File, io};
 
-use crate::event::InputEvent;
+use crate::{event::InputEvent, write_raw};
 
 /// Number of events to buffer before writing.
 ///
@@ -81,17 +76,6 @@ impl BatchWriter {
             writer(&self.buffer[..self.bufpos])?;
             self.bufpos = 0;
         }
-        Ok(())
-    }
-}
-
-fn write_raw(mut file: &File, events: &[InputEvent]) -> io::Result<()> {
-    unsafe {
-        let bytes = slice::from_raw_parts(
-            events.as_ptr().cast::<u8>(),
-            size_of::<InputEvent>() * events.len(),
-        );
-        file.write_all(bytes)?;
         Ok(())
     }
 }
