@@ -10,8 +10,7 @@ use std::{
     ffi::{CStr, CString, OsString, c_char, c_int},
     fmt,
     fs::File,
-    io::{self, Read as _},
-    mem::{self, MaybeUninit},
+    io, mem,
     os::{
         fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd},
         unix::{ffi::OsStringExt, prelude::RawFd},
@@ -41,6 +40,7 @@ use crate::{
             uinput_abs_setup, uinput_ff_erase, uinput_ff_upload, uinput_setup,
         },
     },
+    read_raw,
     util::{block_until_readable, errorkind2libc, is_readable, set_nonblocking},
 };
 
@@ -558,7 +558,7 @@ impl UinputDevice {
     /// [`ForceFeedbackEvent`]: crate::event::ForceFeedbackEvent
     #[inline]
     pub fn events(&self) -> Events<'_> {
-        Events { dev: self }
+        Events { file: &self.file }
     }
 
     /// Returns whether this device has any pending events that can be read without blocking.
@@ -851,24 +851,20 @@ impl<'a> SlotWriter<'a> {
 /// one thread can read events while another writes them.
 #[derive(Debug)]
 pub struct Events<'a> {
-    dev: &'a UinputDevice,
+    file: &'a File,
 }
 
 impl Iterator for Events<'_> {
     type Item = io::Result<InputEvent>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        unsafe {
-            let mut dest = MaybeUninit::<InputEvent>::uninit();
-            let bptr = dest.as_mut_ptr().cast::<u8>();
-            let byte_buf = slice::from_raw_parts_mut(bptr, size_of::<InputEvent>());
-            let bytes = match (&self.dev.file).read(byte_buf) {
-                Ok(bytes) => bytes,
-                Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
-                Err(e) => return Some(Err(e)),
-            };
-            assert_eq!(bytes, size_of::<InputEvent>());
-            Some(Ok(dest.assume_init()))
+        let mut dest = InputEvent::zeroed();
+        match read_raw(&self.file, slice::from_mut(&mut dest)) {
+            Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
+            Err(e) => Some(Err(e)),
+            Ok(0) => None,
+            Ok(1) => Some(Ok(dest)),
+            Ok(n) => unreachable!("read {n} events, but can only hold 1"),
         }
     }
 }
