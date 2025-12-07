@@ -4,7 +4,7 @@ use std::{
     fmt,
     fs::File,
     io::{self, Read as _, Write},
-    mem::{self, MaybeUninit},
+    mem::MaybeUninit,
     os::{
         fd::{AsFd, AsRawFd, IntoRawFd},
         unix::prelude::{BorrowedFd, RawFd},
@@ -302,7 +302,7 @@ impl Evdev {
         unsafe {
             self.ioctl(
                 ioctl_name,
-                ioctl(words.len() * mem::size_of::<Word>()),
+                ioctl(words.len() * size_of::<Word>()),
                 words.as_mut_ptr().cast(),
             )?;
         };
@@ -917,7 +917,7 @@ impl Evdev {
         unsafe {
             let mut mask = input_mask {
                 type_: ty.0.into(),
-                codes_size: (words.len() * mem::size_of::<Word>()) as u32,
+                codes_size: (words.len() * size_of::<Word>()) as u32,
                 codes_ptr: words.as_mut_ptr().expose_provenance() as u64,
             };
             self.ioctl("EVIOCGMASK", EVIOCGMASK, &mut mask)?;
@@ -930,7 +930,7 @@ impl Evdev {
         unsafe {
             let mask = input_mask {
                 type_: ty.0.into(),
-                codes_size: (words.len() * mem::size_of::<Word>()) as u32,
+                codes_size: (words.len() * size_of::<Word>()) as u32,
                 codes_ptr: words.as_ptr().expose_provenance() as u64,
             };
             self.ioctl("EVIOCSMASK", EVIOCSMASK, &mask)?;
@@ -1033,9 +1033,8 @@ impl Iterator for RawEvents<'_> {
 
 fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
     let bptr = dest.as_mut_ptr().cast::<u8>();
-    let byte_buf =
-        unsafe { slice::from_raw_parts_mut(bptr, mem::size_of::<InputEvent>() * dest.len()) };
+    let byte_buf = unsafe { slice::from_raw_parts_mut(bptr, size_of::<InputEvent>() * dest.len()) };
     let bytes = file.read(byte_buf)?;
-    debug_assert_eq!(bytes % mem::size_of::<InputEvent>(), 0);
-    Ok(bytes / mem::size_of::<InputEvent>())
+    debug_assert_eq!(bytes % size_of::<InputEvent>(), 0);
+    Ok(bytes / size_of::<InputEvent>())
 }

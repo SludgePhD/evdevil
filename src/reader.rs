@@ -15,7 +15,6 @@ use std::{
     fs::File,
     io::{self, Read},
     iter::{self, FusedIterator, zip},
-    mem,
     ops::RangeInclusive,
     os::fd::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, RawFd},
     slice,
@@ -991,11 +990,10 @@ impl EventReader {
 
 fn read_raw(mut file: &File, dest: &mut [InputEvent]) -> io::Result<usize> {
     let bptr = dest.as_mut_ptr().cast::<u8>();
-    let byte_buf =
-        unsafe { slice::from_raw_parts_mut(bptr, mem::size_of::<InputEvent>() * dest.len()) };
+    let byte_buf = unsafe { slice::from_raw_parts_mut(bptr, size_of::<InputEvent>() * dest.len()) };
     let bytes = file.read(byte_buf)?;
-    debug_assert_eq!(bytes % mem::size_of::<InputEvent>(), 0);
-    Ok(bytes / mem::size_of::<InputEvent>())
+    debug_assert_eq!(bytes % size_of::<InputEvent>(), 0);
+    Ok(bytes / size_of::<InputEvent>())
 }
 
 fn report_or_dropped(ev: &InputEvent) -> bool {

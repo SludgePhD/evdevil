@@ -122,7 +122,7 @@ impl super::HotplugImpl for Impl {
 
     fn read(&self) -> io::Result<HotplugEvent> {
         let mut buf = [0u8; 8192];
-        let mut cred_msg = [0u8; unsafe { CMSG_SPACE(mem::size_of::<ucred>() as u32) as usize }];
+        let mut cred_msg = [0u8; unsafe { CMSG_SPACE(size_of::<ucred>() as u32) as usize }];
         let mut sender = unsafe { mem::zeroed::<sockaddr_nl>() };
 
         loop {
@@ -136,7 +136,7 @@ impl super::HotplugImpl for Impl {
             msg.msg_control = cred_msg.as_mut_ptr().cast();
             msg.msg_controllen = cred_msg.len() as _;
             msg.msg_name = (&raw mut sender).cast();
-            msg.msg_namelen = mem::size_of_val(&sender) as u32;
+            msg.msg_namelen = size_of_val(&sender) as u32;
 
             let buflen = unsafe { cvt_r(|| recvmsg(self.as_raw_fd(), &mut msg, 0))? };
             if buflen < 32 || buflen >= buf.len() as isize {

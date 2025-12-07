@@ -311,8 +311,6 @@ impl<V: BitValue> Iterator for SymmetricDifference<'_, V> {
 
 #[cfg(test)]
 mod tests {
-    use std::mem;
-
     use crate::{
         InputProp,
         event::{Abs, EventType, Key, Led, Misc, Rel},
@@ -323,11 +321,11 @@ mod tests {
     #[test]
     fn sizes() {
         // `BitSet`s are only as big as needed.
-        assert_eq!(mem::size_of::<BitSet<EventType>>(), mem::size_of::<Word>());
-        assert_eq!(mem::size_of::<BitSet<InputProp>>(), mem::size_of::<Word>());
-        assert_eq!(mem::size_of::<BitSet<Rel>>(), mem::size_of::<Word>());
-        assert_eq!(mem::size_of::<BitSet<Misc>>(), mem::size_of::<Word>());
-        assert_eq!(mem::size_of::<BitSet<Led>>(), mem::size_of::<Word>());
+        assert_eq!(size_of::<BitSet<EventType>>(), size_of::<Word>());
+        assert_eq!(size_of::<BitSet<InputProp>>(), size_of::<Word>());
+        assert_eq!(size_of::<BitSet<Rel>>(), size_of::<Word>());
+        assert_eq!(size_of::<BitSet<Misc>>(), size_of::<Word>());
+        assert_eq!(size_of::<BitSet<Led>>(), size_of::<Word>());
     }
 
     #[test]

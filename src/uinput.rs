@@ -861,13 +861,13 @@ impl Iterator for Events<'_> {
         unsafe {
             let mut dest = MaybeUninit::<InputEvent>::uninit();
             let bptr = dest.as_mut_ptr().cast::<u8>();
-            let byte_buf = slice::from_raw_parts_mut(bptr, mem::size_of::<InputEvent>());
+            let byte_buf = slice::from_raw_parts_mut(bptr, size_of::<InputEvent>());
             let bytes = match (&self.dev.file).read(byte_buf) {
                 Ok(bytes) => bytes,
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => return None,
                 Err(e) => return Some(Err(e)),
             };
-            assert_eq!(bytes, mem::size_of::<InputEvent>());
+            assert_eq!(bytes, size_of::<InputEvent>());
             Some(Ok(dest.assume_init()))
         }
     }

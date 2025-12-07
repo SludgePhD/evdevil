@@ -2,7 +2,7 @@ use std::{
     fmt,
     fs::File,
     io::{self, Write},
-    mem, slice,
+    slice,
 };
 
 use crate::event::InputEvent;
@@ -89,7 +89,7 @@ fn write_raw(mut file: &File, events: &[InputEvent]) -> io::Result<()> {
     unsafe {
         let bytes = slice::from_raw_parts(
             events.as_ptr().cast::<u8>(),
-            mem::size_of::<InputEvent>() * events.len(),
+            size_of::<InputEvent>() * events.len(),
         );
         file.write_all(bytes)?;
         Ok(())

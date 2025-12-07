@@ -74,7 +74,7 @@ impl super::HotplugImpl for Impl {
             cvt(connect(
                 fd.as_raw_fd(),
                 (&raw const addr).cast(),
-                mem::size_of_val(&addr) as _,
+                size_of_val(&addr) as _,
             ))?;
 
             // `devd` in FreeBSD 14 has a race condition where it will send out device events
