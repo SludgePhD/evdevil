@@ -173,7 +173,7 @@ impl fmt::Debug for Waveform {
 ///
 /// This ID type is used to refer to the uploaded effects and can be used to trigger, stop, or erase
 /// them.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EffectId(pub(crate) i16);
 
 /// Configures which button triggers an effect (if any).
