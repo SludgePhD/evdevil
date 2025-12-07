@@ -62,6 +62,7 @@ impl fmt::Debug for AbsSetup {
 
 impl AbsSetup {
     /// Creates a new [`AbsSetup`] value that configures the given [`Abs`] axis.
+    #[inline]
     pub const fn new(abs: Abs, abs_info: AbsInfo) -> Self {
         AbsSetup(uinput_abs_setup {
             code: abs.raw(),
@@ -70,11 +71,13 @@ impl AbsSetup {
     }
 
     /// Returns the [`Abs`] axis this [`AbsSetup`] is configuring.
+    #[inline]
     pub const fn abs(&self) -> Abs {
         Abs::from_raw(self.0.code)
     }
 
     /// Returns the [`AbsInfo`] configuration that is applied to the [`Abs`] axis.
+    #[inline]
     pub const fn abs_info(&self) -> &AbsInfo {
         // Safety: `AbsInfo` is a `#[repr(transparent)]` wrapper
         unsafe { mem::transmute(&self.0.absinfo) }
@@ -268,6 +271,7 @@ impl Builder {
     ///
     /// Note that you also have to enable the specific force-feedback features you intend to support
     /// by calling [`Builder::with_ff_features`].
+    #[inline]
     pub fn with_ff_effects_max(mut self, ff_max: u32) -> io::Result<Self> {
         // Returns an `io::Result` so that all the builder methods have the same signature.
         self.setup.ff_effects_max = ff_max;
@@ -426,7 +430,7 @@ impl UinputDevice {
     ///
     /// # Errors
     ///
-    /// This will fails with an [`io::ErrorKind::PermissionDenied`] error if the current user is not
+    /// This will fail with an [`io::ErrorKind::PermissionDenied`] error if the user is not
     /// allowed to open `/dev/uinput` with read and write permission.
     pub fn builder() -> io::Result<Builder> {
         Builder::new()
@@ -552,6 +556,7 @@ impl UinputDevice {
     /// [`LedEvent`]: crate::event::LedEvent
     /// [`SoundEvent`]: crate::event::SoundEvent
     /// [`ForceFeedbackEvent`]: crate::event::ForceFeedbackEvent
+    #[inline]
     pub fn events(&self) -> Events<'_> {
         Events { dev: self }
     }
@@ -830,6 +835,7 @@ impl<'a> SlotWriter<'a> {
     }
 
     /// Finishes updating this multitouch slot and returns the original [`EventWriter`].
+    #[inline]
     pub fn finish_slot(self) -> io::Result<EventWriter<'a>> {
         Ok(self.0)
     }
@@ -875,6 +881,7 @@ pub struct ForceFeedbackUpload(uinput_ff_upload);
 
 impl ForceFeedbackUpload {
     /// Returns the [`Effect`] that is being uploaded.
+    #[inline]
     pub fn effect(&self) -> &Effect<'static> {
         // FIXME: the `'static` lifetime would be unsound if uinput supported custom waveform data
 
@@ -886,6 +893,7 @@ impl ForceFeedbackUpload {
     ///
     /// This ID is referenced by force-feedback trigger events and by [`ForceFeedbackErase`]
     /// commands, so implementations should store this somewhere.
+    #[inline]
     pub fn effect_id(&self) -> EffectId {
         self.effect().id()
     }
@@ -894,6 +902,7 @@ impl ForceFeedbackUpload {
     ///
     /// If this upload is uploading a *new* [`Effect`], this will refer to an invalid [`Effect`]
     /// structure (likely with all fields zeroed out).
+    #[inline]
     pub fn old(&self) -> &Effect<'static> {
         // FIXME: the `'static` lifetime would be unsound if uinput supported custom waveform data
 
