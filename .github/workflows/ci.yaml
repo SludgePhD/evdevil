@@ -7,10 +7,14 @@ on:
 
 env:
   RUSTUP_MAX_RETRIES: 10
-  MSRV: 1.85.0  # (keep this in sync with `Cargo.toml`'s `rust-version`)
   # Tests have to run as root on GHA since the VM image is very restrictive about
   # who can open "fun" device files like `/dev/uinput`.
   CICD_SUDO: 1
+
+  CROSS_VERSION: v0.2.5
+
+  MSRV: 1.85.0  # (keep this in sync with `Cargo.toml`'s `rust-version`)
+
 
 jobs:
   msrv:
@@ -85,6 +89,26 @@ jobs:
           rustc --version
           cargo test
 
+  big-endian:
+    runs-on: ubuntu-latest
+    name: Test on Big Endian emulator
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install cross
+      run: |
+        mkdir -p "$RUNNER_TEMP/cross"
+        echo "$RUNNER_TEMP/cross" >> $GITHUB_PATH
+        cd "$RUNNER_TEMP/cross"
+        curl -LO https://github.com/cross-rs/cross/releases/download/$CROSS_VERSION/cross-x86_64-unknown-linux-musl.tar.gz
+        tar xf cross-x86_64-unknown-linux-musl.tar.gz
+
+    - name: Run unit tests on PowerPC
+      run: cross test --lib --target powerpc64-unknown-linux-gnu
+      # We only run unit tests, not the integration tests, because QEMU doesn't translate the
+      # evdev/uinput ioctls between architectures.
+
   ci:
     name: CI
     strategy:
@@ -124,7 +148,7 @@ jobs:
 
   cd:
     name: CD
-    needs: [msrv, build, ci, freebsd]
+    needs: [msrv, build, ci, freebsd, big-endian]
     runs-on: ubuntu-latest
 
     permissions:
