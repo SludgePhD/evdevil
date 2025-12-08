@@ -7,7 +7,7 @@ use std::{
 
 use evdevil::{
     Evdev,
-    bits::BitSet,
+    bits::{BitSet, BitValue},
     event::{
         Abs, AbsEvent, EventKind, EventType, InputEvent, Key, KeyEvent, KeyState, Led, LedEvent,
         Rel, RelEvent, Syn, SynEvent,

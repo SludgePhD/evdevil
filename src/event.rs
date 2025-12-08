@@ -38,7 +38,7 @@
 //! All of these event types can be converted to [`EventKind`] and [`InputEvent`] via [`From`] and
 //! [`Into`], and can be [`Deref`]erenced to obtain the [`InputEvent`] they wrap.
 //!
-//! # Serde support
+//! # Serialization and Parsing
 //!
 //! If the `serde` feature is enabled, implementations of [`Serialize`] and [`Deserialize`] will be
 //! provided for the following types:
@@ -51,6 +51,7 @@
 //! - [`Switch`]
 //! - [`Sound`]
 //!
+//!
 //! For human-readable formats, the serde representation will use the evdev constant name if the
 //! value has one (eg. `KEY_F1`, `ABS_Y`, ...), and the raw [`u16`] code if it does not.
 //! Deserialization from a human-readable format will accept either.
@@ -58,6 +59,7 @@
 //! Note that this means that when a new key or axis name is added in a later version of this crate,
 //! older versions will not be able to deserialize it.
 //! `evdevil` guarantees only old->new compatibility between non-breaking versions, not new->old.
+//!
 //!
 //! Note also that some values have multiple names.
 //! For example, [`Key::BTN_TRIGGER_HAPPY`] is the same value as [`Key::BTN_TRIGGER_HAPPY1`].
@@ -70,6 +72,15 @@
 //! There is also no compatibility concern in case new key or axis names are added in later
 //! versions.
 //!
+//! All of the above types also implement [`FromStr`], which accepts the same names as the
+//! [`Deserialize`] implementation, and requires no Cargo feature to be enabled.
+//!
+//! Most evdev enumerations also define a `_MAX` and `_CNT` value in the Linux headers.
+//! Since those values are routinely updated (incremented), they are not exposed by `evdevil` and
+//! are also not accepted by the [`FromStr`] and [`Deserialize`] impls, to ensure that no silent
+//! breakage occurs when these constants are changed.
+//!
+//! [`FromStr`]: std::str::FromStr
 //! [`Evdev::set_clockid`]: crate::Evdev::set_clockid
 //! [`Serialize`]: ::serde::Serialize
 //! [`Deserialize`]: ::serde::Deserialize
@@ -788,7 +799,6 @@ ffi_enum! {
         PEN    = 0x01,
         PALM   = 0x02,
         DIAL   = 0x0a,
-        MAX    = 0x0f,
     }
 }
 

@@ -34,9 +34,10 @@ ffi_enum! {
         /// Some accelerometer devices will also send gyroscope data using `ABS_RX`, `ABX_RY`, and
         /// `ABS_RZ`.
         ACCELEROMETER = 0x06,
-        MAX = 0x1f,
-        CNT = Self::MAX.0 + 1,
     }
+}
+impl InputProp {
+    const MAX: Self = Self(0x1f);
 }
 bitvalue!(InputProp);
 
@@ -78,14 +79,15 @@ ffi_enum! {
         PWR = 0x16,
         /// Force-feedback status feedback (largely unused, and unimplemented here).
         FF_STATUS = 0x17,
-        MAX = 0x1f,
-        CNT = Self::MAX.0 + 1,
         /// Synthetic [`UinputEvent`]s delivered to a [`UinputDevice`].
         ///
         /// [`UinputEvent`]: crate::event::UinputEvent
         /// [`UinputDevice`]: crate::uinput::UinputDevice
         UINPUT = 0x0101,
     }
+}
+impl EventType {
+    const MAX: Self = Self(0x1f);
 }
 bitvalue!(EventType);
 
@@ -132,8 +134,6 @@ ffi_enum! {
         /// using the evdev `ioctl`s.
         /// [`EventReader`][crate::reader::EventReader] can be used to do this automatically.
         DROPPED = 3,
-        MAX = 0xf,
-        CNT = Self::MAX.0 + 1,
     }
 }
 
@@ -829,13 +829,11 @@ ffi_enum! {
         BTN_TRIGGER_HAPPY38 = 0x2e5,
         BTN_TRIGGER_HAPPY39 = 0x2e6,
         BTN_TRIGGER_HAPPY40 = 0x2e7,
-        KEY_MAX = 0x2ff,
-        KEY_CNT = Self::KEY_MAX.0,
     }
 }
 
 impl Key {
-    const MAX: Self = Self::KEY_MAX;
+    const MAX: Self = Self(0x2ff);
 }
 
 bitvalue!(Key);
@@ -892,11 +890,11 @@ ffi_enum! {
         RESERVED      = 0x0a,
         WHEEL_HI_RES  = 0x0b,
         HWHEEL_HI_RES = 0x0c,
-        MAX           = 0x0f,
-        CNT           = Self::MAX.0 + 1,
     }
 }
-
+impl Rel {
+    const MAX: Self = Self(0x0f);
+}
 bitvalue!(Rel);
 
 impl Rel {
@@ -984,11 +982,11 @@ ffi_enum! {
         MT_DISTANCE    = 0x3b,
         MT_TOOL_X      = 0x3c,
         MT_TOOL_Y      = 0x3d,
-        MAX            = 0x3f,
-        CNT            = Self::MAX.0 + 1,
     }
 }
-
+impl Abs {
+    const MAX: Self = Self(0x3f);
+}
 bitvalue!(Abs);
 
 impl Abs {
@@ -1053,10 +1051,11 @@ ffi_enum! {
         MUTE_DEVICE          = 0x0e,
         PEN_INSERTED         = 0x0f,
         MACHINE_COVER        = 0x10,
-        MAX                  = 0x10,
     }
 }
-
+impl Switch {
+    const MAX: Self = Self(0x10);
+}
 bitvalue!(Switch);
 
 impl Switch {
@@ -1115,11 +1114,11 @@ ffi_enum! {
         /// If it *is* provided, it can be used as a more precise (device-generated) time source
         /// than [`InputEvent::time`][crate::event::InputEvent::time].
         TIMESTAMP = 0x05,
-        MAX       = 0x07,
-        CNT       = Self::MAX.0 + 1,
     }
 }
-
+impl Misc {
+    const MAX: Self = Self(0x07);
+}
 bitvalue!(Misc);
 
 impl Misc {
@@ -1204,11 +1203,11 @@ ffi_enum! {
         MISC     = 0x08,
         MAIL     = 0x09,
         CHARGING = 0x0a,
-        MAX      = 0x0f,
-        CNT      = Self::MAX.0 + 1,
     }
 }
-
+impl Led {
+    const MAX: Self = Self(0x0f);
+}
 bitvalue!(Led);
 
 impl Led {
@@ -1252,8 +1251,6 @@ ffi_enum! {
     pub enum Repeat: u16 {
         DELAY  = 0x00,
         PERIOD = 0x01,
-        MAX    = 0x01,
-        CNT    = Self::MAX.0 + 1,
     }
 }
 // NOTE: querying the supported `Repeat` values gives an `InvalidInput` error, so it has no `BitValue` impl
@@ -1275,9 +1272,10 @@ ffi_enum! {
         CLICK = 0x00,
         BELL  = 0x01,
         TONE  = 0x02,
-        MAX   = 0x07,
-        CNT   = Self::MAX.0 + 1,
     }
+}
+impl Sound {
+    const MAX: Self = Self(0x07);
 }
 bitvalue!(Sound);
 

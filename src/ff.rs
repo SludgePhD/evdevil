@@ -108,10 +108,10 @@ ffi_enum! {
         ///
         /// [`Evdev::set_ff_autocenter`]: crate::Evdev::set_ff_autocenter
         AUTOCENTER = 0x61,
-
-        MAX        = 0x7f,
-        CNT        = Self::MAX.0 + 1,
     }
+}
+impl Feature {
+    const MAX: Self = Self(0x7f);
 }
 bitvalue!(Feature);
 

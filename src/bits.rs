@@ -44,6 +44,11 @@ pub trait BitValue: Copy + sealed::BitValueImpl {
     /// The largest value that can be stored in a [`BitSet`].
     ///
     /// Attempting to insert a value above this into a [`BitSet`] will panic.
+    ///
+    /// Note that the exact value used for this associated constant should not be relied on as it
+    /// is not stable.
+    /// It may be incremented in any minor or patch release to update the underlying enumeration
+    /// with upstream additions.
     const MAX: Self;
 }
 
@@ -336,7 +341,7 @@ mod tests {
         assert!(set.contains(InputProp::POINTER));
         assert!(!set.contains(InputProp::DIRECT));
         assert!(!set.contains(InputProp::MAX));
-        assert!(!set.contains(InputProp::CNT));
+        assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
         assert!(!set.contains(InputProp(u8::MAX)));
 
         assert_eq!(set.iter().collect::<Vec<_>>(), &[InputProp::POINTER]);
@@ -350,8 +355,8 @@ mod tests {
         assert!(!set.contains(InputProp::POINTER));
         assert!(!set.contains(InputProp::DIRECT));
         assert!(set.contains(InputProp::MAX));
-        assert!(!set.contains(InputProp::CNT));
-        assert!(!set.remove(InputProp::CNT));
+        assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
+        assert!(!set.remove(InputProp(InputProp::MAX.0 + 1)));
     }
 
     #[test]
@@ -380,12 +385,12 @@ mod tests {
         let mut set = BitSet::new();
         set.insert(Key::KEY_RESERVED);
         set.insert(Key::KEY_Q);
-        set.insert(Key::KEY_MAX);
+        set.insert(Key::MAX);
         set.insert(Key::KEY_MACRO1);
 
         assert_eq!(
             set.iter().collect::<Vec<_>>(),
-            &[Key::KEY_RESERVED, Key::KEY_Q, Key::KEY_MACRO1, Key::KEY_MAX]
+            &[Key::KEY_RESERVED, Key::KEY_Q, Key::KEY_MACRO1, Key::MAX]
         );
     }
 
