@@ -104,7 +104,11 @@ impl fmt::Debug for Builder {
 
 impl Builder {
     fn new() -> io::Result<Self> {
-        let file = File::options().read(true).write(true).open("/dev/uinput")?;
+        let file = File::options()
+            .read(true)
+            .write(true)
+            .open("/dev/uinput")
+            .map_err(|e| io::Error::new(e.kind(), format!("failed to open '/dev/uinput': {e}")))?;
         let device = UinputDevice { file };
         unsafe {
             let mut version = 0;
