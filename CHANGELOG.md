@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.5
+
+### Fixes
+
+- Fix a panic in `examples/keymap.rs`.
+- Fix all-zero `Scancode`s being printed as the empty string.
+
+### Improvements
+
+- Include the `/dev/uinput` path in the `io::Error` when opening the device fails.
+- Run the unit tests on Big Endian emulation in CI.
+
+
 ## v0.3.4
 
 ### Improvements
@@ -22,6 +35,7 @@
 - Audited the crate for Undefined Behavior.
 - Run CI on aarch64 Linux (GNU and musl).
 - Add the crate to the `os::freebsd-apis` category on crates.io.
+
 
 ## v0.3.3
 
