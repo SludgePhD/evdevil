@@ -6,8 +6,8 @@ use crate::{event::Key, raw::input::input_keymap_entry};
 ///
 /// **Note**: This is not the same as the *localized* keymap you use in applications (like QWERTZ or
 /// AZERTY), which is handled by the X server or Wayland compositor.
-/// Instead, this keymap exists to translate raw scancodes from the keyboard to a USB-HID keycode,
-/// which is defined as a US layout.
+/// Instead, this keymap exists to translate raw scancodes from the keyboard to USB-HID keycodes,
+/// which are defined as a US layout.
 ///
 /// Returned by [`Evdev::keymap_entry`] and [`Evdev::keymap_entry_by_index`].
 ///
@@ -143,13 +143,20 @@ impl From<u32> for Scancode {
 
 impl fmt::Debug for Scancode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut any_nonzero = false;
         for (i, byte) in self.iter_be_bytes().skip_while(|b| *b == 0).enumerate() {
             if i == 0 {
                 write!(f, "{byte:x}")?;
             } else {
                 write!(f, "{byte:02x}")?;
             }
+            any_nonzero = true;
         }
+
+        if !any_nonzero {
+            f.write_str("0")?;
+        }
+
         Ok(())
     }
 }
@@ -164,12 +171,23 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg_attr(target_endian = "big", ignore = "little-endian test")]
-    fn scancode_debug() {
-        let code = Scancode::from_ne_slice(&[0xe0, 0x00, 0x07]);
-        assert_eq!(format!("{code:?}"), "700e0");
+    fn smoke() {
+        let code = Scancode::from(0u8);
+        assert_eq!(format!("{code}"), "0");
 
-        let code = Scancode::from_ne_slice(&[0xe0, 0x00, 0x07, 0x00]);
-        assert_eq!(format!("{code:?}"), "700e0");
+        let code = Scancode::from(1u8);
+        assert_eq!(format!("{code}"), "1");
+
+        let code = Scancode::from(10u8);
+        assert_eq!(format!("{code}"), "a");
+
+        let code = Scancode::from(0x10u8);
+        assert_eq!(format!("{code}"), "10");
+
+        let code = Scancode::from(0x100u16);
+        assert_eq!(format!("{code}"), "100");
+
+        let code = Scancode::from(0x1000u16);
+        assert_eq!(format!("{code}"), "1000");
     }
 }
