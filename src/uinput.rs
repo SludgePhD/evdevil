@@ -882,9 +882,7 @@ pub struct ForceFeedbackUpload(uinput_ff_upload);
 impl ForceFeedbackUpload {
     /// Returns the [`Effect`] that is being uploaded.
     #[inline]
-    pub fn effect(&self) -> &Effect<'static> {
-        // FIXME: the `'static` lifetime would be unsound if uinput supported custom waveform data
-
+    pub fn effect(&self) -> &Effect<'_> {
         // Safety: `#[repr(transparent)]`
         unsafe { mem::transmute::<&ff_effect, &Effect>(&self.0.effect) }
     }
@@ -903,9 +901,7 @@ impl ForceFeedbackUpload {
     /// If this upload is uploading a *new* [`Effect`], this will refer to an invalid [`Effect`]
     /// structure (likely with all fields zeroed out).
     #[inline]
-    pub fn old(&self) -> &Effect<'static> {
-        // FIXME: the `'static` lifetime would be unsound if uinput supported custom waveform data
-
+    pub fn old(&self) -> &Effect<'_> {
         // Safety: `#[repr(transparent)]`
         unsafe { mem::transmute::<&ff_effect, &Effect>(&self.0.old) }
     }
