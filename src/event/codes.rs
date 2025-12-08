@@ -849,7 +849,7 @@ impl Key {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         // This one has no shared prefix, since both `KEY_` and `BTN_` constants exist.
         Some(VariantName::new("", self.variant_name()?))
     }
@@ -865,8 +865,8 @@ impl FromStr for Key {
 
 impl fmt::Debug for Key {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.variant_name() {
-            Some(name) => f.write_str(name),
+        match self.name() {
+            Some(name) => name.fmt(f),
             None => write!(f, "Key({:#x})", self.0),
         }
     }
@@ -908,7 +908,7 @@ impl Rel {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("REL_", self.variant_name()?))
     }
 }
@@ -1000,7 +1000,7 @@ impl Abs {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("ABS_", self.variant_name()?))
     }
 }
@@ -1069,7 +1069,7 @@ impl Switch {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("SW_", self.variant_name()?))
     }
 }
@@ -1132,7 +1132,7 @@ impl Misc {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("MSC_", self.variant_name()?))
     }
 }
@@ -1221,7 +1221,7 @@ impl Led {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("LED_", self.variant_name()?))
     }
 }
@@ -1310,7 +1310,7 @@ impl Sound {
         self.0
     }
 
-    pub fn name(self) -> Option<VariantName> {
+    pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("SND_", self.variant_name()?))
     }
 }
@@ -1318,7 +1318,7 @@ impl Sound {
 /// A [`Display`]able, human-readable name of an evdev constant.
 ///
 /// [`Display`]: fmt::Display
-pub struct VariantName {
+pub(crate) struct VariantName {
     prefix: &'static str,
     variant: &'static str,
 }
