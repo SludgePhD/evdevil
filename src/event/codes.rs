@@ -1051,10 +1051,11 @@ ffi_enum! {
         MUTE_DEVICE          = 0x0e,
         PEN_INSERTED         = 0x0f,
         MACHINE_COVER        = 0x10,
+        USB_INSERT           = 0x11,
     }
 }
 impl Switch {
-    const MAX: Self = Self(0x10);
+    const MAX: Self = Self(0x11);
 }
 bitvalue!(Switch);
 
