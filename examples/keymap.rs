@@ -45,10 +45,8 @@ fn dump_keymap(device: &Evdev) -> io::Result<()> {
     if !keys.is_empty() && device.keymap_entry_by_index(0).is_ok() {
         println!("  keymap:");
         for i in 0.. {
-            let ent = match device.keymap_entry_by_index(i) {
-                Ok(ent) => ent,
-                Err(e) if e.kind() == io::ErrorKind::InvalidInput => break,
-                Err(e) => return Err(e),
+            let Some(ent) = device.keymap_entry_by_index(i)? else {
+                break;
             };
 
             println!("  - {:?}", ent);
