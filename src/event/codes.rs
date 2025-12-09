@@ -1104,7 +1104,7 @@ ffi_enum! {
         PULSELED  = 0x01,
         GESTURE   = 0x02,
         RAW       = 0x03,
-        /// Scancode.
+        /// Scancode of the following [`KeyEvent`][super::KeyEvent].
         SCAN      = 0x04,
         /// Microseconds that passed since the last device reset.
         ///
