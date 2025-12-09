@@ -1345,6 +1345,8 @@ impl fmt::Debug for VariantName {
 
 #[cfg(test)]
 mod tests {
+    use crate::{bits::BitValue, ff};
+
     use super::*;
 
     #[test]
@@ -1391,5 +1393,63 @@ mod tests {
         assert_eq!("SND_TONE".parse(), Ok(Sound::TONE));
         assert_eq!(format!("{:?}", Sound::TONE), "SND_TONE");
         assert_eq!(format!("{:?}", Sound(0xffff)), "Sound(0xffff)");
+    }
+
+    fn checkbv<B: BitValue>(
+        raw: impl Fn(B) -> u16,
+        from_raw: impl Fn(u16) -> B,
+        name: impl Fn(&B) -> Option<&'static str>,
+    ) -> Vec<&'static str> {
+        // Pull out all named values with a value greater than B::MAX
+        let mut names = Vec::new();
+        for i in raw(B::MAX) + 1..=u16::MAX {
+            let b = from_raw(i);
+            if let Some(name) = name(&b) {
+                names.push(name);
+            }
+        }
+        names
+    }
+
+    #[test]
+    fn bitvalue_sanity() {
+        // Check that no `BitValue` implementor defines valid values above their `BitValue::MAX` value.
+
+        assert_eq!(
+            checkbv::<Abs>(Abs::raw, Abs::from_raw, Abs::variant_name),
+            &[] as &[&str],
+        );
+        assert_eq!(
+            checkbv::<EventType>(EventType::raw, EventType::from_raw, EventType::variant_name),
+            &["UINPUT"] as &[&str], // this one's allowed
+        );
+        assert_eq!(
+            checkbv::<Key>(Key::raw, Key::from_raw, Key::variant_name),
+            &[] as &[&str],
+        );
+        assert_eq!(
+            checkbv::<Misc>(Misc::raw, Misc::from_raw, Misc::variant_name),
+            &[] as &[&str],
+        );
+        assert_eq!(
+            checkbv::<Rel>(Rel::raw, Rel::from_raw, Rel::variant_name),
+            &[] as &[&str],
+        );
+        assert_eq!(
+            checkbv::<Sound>(Sound::raw, Sound::from_raw, Sound::variant_name),
+            &[] as &[&str],
+        );
+        assert_eq!(
+            checkbv::<Switch>(Switch::raw, Switch::from_raw, Switch::variant_name),
+            &[] as &[&str],
+        );
+        assert_eq!(
+            checkbv::<ff::Feature>(
+                ff::Feature::raw,
+                ff::Feature::from_raw,
+                ff::Feature::variant_name
+            ),
+            &[] as &[&str],
+        );
     }
 }

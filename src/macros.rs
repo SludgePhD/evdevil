@@ -22,7 +22,7 @@ macro_rules! ffi_enum {
             )+
 
             #[allow(dead_code, unreachable_patterns)]
-            fn variant_name(&self) -> Option<&'static str> {
+            pub(crate) fn variant_name(&self) -> Option<&'static str> {
                 match self {
                     $(
                         &Self::$variant => Some(stringify!($variant)),
@@ -32,7 +32,7 @@ macro_rules! ffi_enum {
             }
 
             #[allow(dead_code)]
-            fn from_variant_name(name: &str) -> Option<Self> {
+            pub(crate) fn from_variant_name(name: &str) -> Option<Self> {
                 match name {
                     $(
                         stringify!($variant) => Some(Self::$variant),
