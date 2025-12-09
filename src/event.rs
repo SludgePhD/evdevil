@@ -802,17 +802,6 @@ ffi_enum! {
     }
 }
 
-impl MtToolType {
-    #[inline]
-    pub const fn from_raw(ty: i32) -> Self {
-        Self(ty)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> i32 {
-        self.0
-    }
-}
 impl fmt::Debug for MtToolType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.variant_name() {

@@ -115,18 +115,6 @@ impl Feature {
 }
 bitvalue!(Feature);
 
-impl Feature {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-}
-
 impl fmt::Debug for Feature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.variant_name() {

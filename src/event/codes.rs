@@ -100,18 +100,6 @@ impl fmt::Debug for EventType {
     }
 }
 
-impl EventType {
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
-    #[inline]
-    pub const fn from_raw(raw: u16) -> Self {
-        Self(raw)
-    }
-}
-
 ffi_enum! {
     /// Synchronization event types.
     ///
@@ -143,18 +131,6 @@ impl fmt::Debug for Syn {
             Some(name) => write!(f, "SYN_{name}"),
             None => write!(f, "Syn({:#x})", self.0),
         }
-    }
-}
-
-impl Syn {
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
-    #[inline]
-    pub const fn from_raw(raw: u16) -> Self {
-        Self(raw)
     }
 }
 
@@ -839,16 +815,6 @@ impl Key {
 bitvalue!(Key);
 
 impl Key {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         // This one has no shared prefix, since both `KEY_` and `BTN_` constants exist.
         Some(VariantName::new("", self.variant_name()?))
@@ -898,16 +864,6 @@ impl Rel {
 bitvalue!(Rel);
 
 impl Rel {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("REL_", self.variant_name()?))
     }
@@ -990,16 +946,6 @@ impl Abs {
 bitvalue!(Abs);
 
 impl Abs {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("ABS_", self.variant_name()?))
     }
@@ -1060,16 +1006,6 @@ impl Switch {
 bitvalue!(Switch);
 
 impl Switch {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("SW_", self.variant_name()?))
     }
@@ -1123,16 +1059,6 @@ impl Misc {
 bitvalue!(Misc);
 
 impl Misc {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("MSC_", self.variant_name()?))
     }
@@ -1212,16 +1138,6 @@ impl Led {
 bitvalue!(Led);
 
 impl Led {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("LED_", self.variant_name()?))
     }
@@ -1301,16 +1217,6 @@ impl fmt::Debug for Sound {
 }
 
 impl Sound {
-    #[inline]
-    pub const fn from_raw(code: u16) -> Self {
-        Self(code)
-    }
-
-    #[inline]
-    pub const fn raw(self) -> u16 {
-        self.0
-    }
-
     pub(crate) fn name(self) -> Option<VariantName> {
         Some(VariantName::new("SND_", self.variant_name()?))
     }
