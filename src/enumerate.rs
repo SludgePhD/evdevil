@@ -25,6 +25,32 @@ use crate::{Evdev, hotplug::HotplugMonitor};
 /// Performing enumeration can block for a significant amount of time while opening the *evdev*
 /// device files. In user-facing applications, it is recommended to perform enumeration in a
 /// background thread.
+///
+/// # Examples
+///
+/// Standard usage:
+///
+/// ```
+/// use evdevil::enumerate;
+///
+/// for res in enumerate()? {
+///     let evdev = res?;
+///     println!("{}", evdev.name()?);
+/// }
+/// # Ok::<_, std::io::Error>(())
+/// ```
+///
+/// With device paths:
+///
+/// ```
+/// use evdevil::enumerate;
+///
+/// for res in enumerate()?.with_path() {
+///     let (path, evdev) = res?;
+///     println!("{} – {}", path.display(), evdev.name()?);
+/// }
+/// # Ok::<_, std::io::Error>(())
+/// ```
 pub fn enumerate() -> io::Result<Enumerate> {
     Ok(Enumerate {
         read_dir: fs::read_dir("/dev/input")?,
