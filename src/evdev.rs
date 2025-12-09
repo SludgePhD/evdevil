@@ -67,8 +67,7 @@ pub struct Evdev {
 impl AsFd for Evdev {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
-        // Safety: we own the fd, so this lifetime constrains it properly
-        unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }
+        self.file.as_fd()
     }
 }
 
