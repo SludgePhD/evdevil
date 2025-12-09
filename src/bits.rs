@@ -86,6 +86,8 @@ impl<V: BitValue> BitSet<V> {
     /// The number of [`Word`]s that make up any given [`BitSet`] can also vary between platforms,
     /// and is generally only guaranteed to be large enough to store
     /// [`<V as BitValue>::MAX`][BitValue::MAX], but may be arbitrarily larger.
+    /// Additionally, the number of [`Word`]s may increase in minor and patch releases to make room
+    /// for newly added enumeration constants.
     pub fn words(&self) -> &[Word] {
         self.words.as_ref()
     }
@@ -96,7 +98,7 @@ impl<V: BitValue> BitSet<V> {
     /// [`<V as BitValue>::MAX`][BitValue::MAX]. Doing so might cause the [`BitSet`] to behave
     /// incorrectly.
     ///
-    /// Note that the [`Word`] type varies in size between platforms.
+    /// Further, all the same considerations from [`BitSet::words`] apply here as well.
     pub fn words_mut(&mut self) -> &mut [Word] {
         self.words.as_mut()
     }

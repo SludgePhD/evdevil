@@ -405,16 +405,6 @@ impl Effect<'_> {
         this
     }
 
-    #[inline]
-    pub fn effect_type(&self) -> EffectType {
-        EffectType(self.raw.type_)
-    }
-
-    #[inline]
-    pub fn id(&self) -> EffectId {
-        EffectId(self.raw.id)
-    }
-
     /// Changes the [`EffectId`] stored in this [`Effect`].
     ///
     /// By default, effects use ID `-1`, which is appropriate when uploading a new effect to a
@@ -429,19 +419,9 @@ impl Effect<'_> {
     }
 
     #[inline]
-    pub fn direction(&self) -> u16 {
-        self.raw.direction
-    }
-
-    #[inline]
     pub fn with_direction(mut self, dir: u16) -> Self {
         self.raw.direction = dir;
         self
-    }
-
-    #[inline]
-    pub fn trigger(&self) -> Trigger {
-        Trigger(self.raw.trigger)
     }
 
     #[inline]
@@ -451,14 +431,34 @@ impl Effect<'_> {
     }
 
     #[inline]
-    pub fn replay(&self) -> Replay {
-        Replay(self.raw.replay)
+    pub fn effect_type(&self) -> EffectType {
+        EffectType(self.raw.type_)
     }
 
     #[inline]
     pub fn with_replay(mut self, replay: Replay) -> Self {
         self.raw.replay = replay.0;
         self
+    }
+
+    #[inline]
+    pub fn id(&self) -> EffectId {
+        EffectId(self.raw.id)
+    }
+
+    #[inline]
+    pub fn direction(&self) -> u16 {
+        self.raw.direction
+    }
+
+    #[inline]
+    pub fn trigger(&self) -> Trigger {
+        Trigger(self.raw.trigger)
+    }
+
+    #[inline]
+    pub fn replay(&self) -> Replay {
+        Replay(self.raw.replay)
     }
 
     pub fn kind(&self) -> Option<EffectKind<'_>> {
