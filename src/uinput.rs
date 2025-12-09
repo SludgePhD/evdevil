@@ -378,14 +378,6 @@ impl Builder {
         }
         Ok(self.device)
     }
-
-    /// Configures the device's hardware IDs.
-    // FIXME: called `with_device_id` but takes an `InputId` – the evdev mirror is called `Evdev::input_id`
-    #[deprecated(note = "use `with_input_id` instead", since = "0.3.4")]
-    pub fn with_device_id(mut self, id: InputId) -> io::Result<Self> {
-        self.setup.id = id.0;
-        Ok(self)
-    }
 }
 
 /// A virtual `uinput` device.

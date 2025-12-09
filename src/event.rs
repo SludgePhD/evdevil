@@ -734,23 +734,6 @@ impl ForceFeedbackEvent {
             _ => None,
         }
     }
-
-    /// Creates a [`ForceFeedbackEvent`] that starts or stops an effect.
-    #[inline]
-    #[deprecated(note = "renamed to `control_effect`", since = "0.3.4")]
-    pub fn new_control_effect(effect: EffectId, active: bool) -> Self {
-        Self::control_effect(effect, active)
-    }
-    #[inline]
-    #[deprecated(note = "renamed to `control_gain`", since = "0.3.4")]
-    pub fn new_set_gain(gain: u16) -> Self {
-        Self::control_gain(gain)
-    }
-    #[inline]
-    #[deprecated(note = "renamed to `control_autocenter`", since = "0.3.4")]
-    pub fn new_set_autocenter(autocenter: u16) -> Self {
-        Self::control_autocenter(autocenter)
-    }
 }
 
 impl fmt::Debug for ForceFeedbackEvent {
