@@ -738,6 +738,18 @@ impl<'a> Periodic<'a> {
         self
     }
 
+    #[inline]
+    pub fn with_offset(mut self, offset: i16) -> Self {
+        self.raw.offset = offset;
+        self
+    }
+
+    #[inline]
+    pub fn with_phase(mut self, phase: u16) -> Self {
+        self.raw.phase = phase;
+        self
+    }
+
     /// Returns the type of [`Waveform`] described by this [`Periodic`] effect.
     #[inline]
     pub fn waveform(&self) -> Waveform {
