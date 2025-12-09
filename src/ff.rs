@@ -628,6 +628,8 @@ impl From<[Inertia; 2]> for Effect<'_> {
 }
 
 /// List of supported force-feedback effects.
+///
+/// Returned by [`Effect::kind`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum EffectKind<'a> {
@@ -730,6 +732,12 @@ impl<'a> Periodic<'a> {
         p
     }
 
+    #[inline]
+    pub fn with_envelope(mut self, env: Envelope) -> Self {
+        self.raw.envelope = env.0;
+        self
+    }
+
     /// Returns the type of [`Waveform`] described by this [`Periodic`] effect.
     #[inline]
     pub fn waveform(&self) -> Waveform {
@@ -762,12 +770,6 @@ impl<'a> Periodic<'a> {
     #[inline]
     pub fn envelope(&self) -> Envelope {
         Envelope(self.raw.envelope)
-    }
-
-    #[inline]
-    pub fn with_envelope(mut self, env: Envelope) -> Self {
-        self.raw.envelope = env.0;
-        self
     }
 
     /// If this effect has type [`Waveform::CUSTOM`], returns a reference to the custom waveform
@@ -837,6 +839,12 @@ impl Constant {
     }
 
     #[inline]
+    pub fn with_envelope(mut self, env: Envelope) -> Self {
+        self.0.envelope = env.0;
+        self
+    }
+
+    #[inline]
     pub fn level(&self) -> i16 {
         self.0.level
     }
@@ -844,12 +852,6 @@ impl Constant {
     #[inline]
     pub fn envelope(&self) -> Envelope {
         Envelope(self.0.envelope)
-    }
-
-    #[inline]
-    pub fn with_envelope(mut self, env: Envelope) -> Self {
-        self.0.envelope = env.0;
-        self
     }
 }
 impl fmt::Debug for Constant {
@@ -882,6 +884,12 @@ impl Ramp {
     }
 
     #[inline]
+    pub fn with_envelope(mut self, env: Envelope) -> Self {
+        self.0.envelope = env.0;
+        self
+    }
+
+    #[inline]
     pub fn start_level(&self) -> i16 {
         self.0.start_level
     }
@@ -894,12 +902,6 @@ impl Ramp {
     #[inline]
     pub fn envelope(&self) -> Envelope {
         Envelope(self.0.envelope)
-    }
-
-    #[inline]
-    pub fn with_envelope(mut self, env: Envelope) -> Self {
-        self.0.envelope = env.0;
-        self
     }
 }
 impl fmt::Debug for Ramp {
@@ -920,7 +922,7 @@ impl fmt::Debug for Ramp {
 pub struct Condition(ff_condition_effect);
 
 impl Condition {
-    /// Creates an empty [`Condition`] that never applies.
+    /// Creates an empty [`Condition`] that always has zero intensity.
     #[inline]
     pub fn new() -> Self {
         Self(ff_condition_effect {
@@ -931,36 +933,6 @@ impl Condition {
             deadband: 0,
             center: 0,
         })
-    }
-
-    #[inline]
-    pub fn right_saturation(&self) -> u16 {
-        self.0.right_saturation
-    }
-
-    #[inline]
-    pub fn left_saturation(&self) -> u16 {
-        self.0.left_saturation
-    }
-
-    #[inline]
-    pub fn right_coeff(&self) -> i16 {
-        self.0.right_coeff
-    }
-
-    #[inline]
-    pub fn left_coeff(&self) -> i16 {
-        self.0.left_coeff
-    }
-
-    #[inline]
-    pub fn deadband(&self) -> u16 {
-        self.0.deadband
-    }
-
-    #[inline]
-    pub fn center(&self) -> i16 {
-        self.0.center
     }
 
     #[inline]
@@ -997,6 +969,36 @@ impl Condition {
     pub fn with_center(mut self, value: i16) -> Self {
         self.0.center = value;
         self
+    }
+
+    #[inline]
+    pub fn right_saturation(&self) -> u16 {
+        self.0.right_saturation
+    }
+
+    #[inline]
+    pub fn left_saturation(&self) -> u16 {
+        self.0.left_saturation
+    }
+
+    #[inline]
+    pub fn right_coeff(&self) -> i16 {
+        self.0.right_coeff
+    }
+
+    #[inline]
+    pub fn left_coeff(&self) -> i16 {
+        self.0.left_coeff
+    }
+
+    #[inline]
+    pub fn deadband(&self) -> u16 {
+        self.0.deadband
+    }
+
+    #[inline]
+    pub fn center(&self) -> i16 {
+        self.0.center
     }
 }
 impl Default for Condition {

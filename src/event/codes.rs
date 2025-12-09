@@ -136,7 +136,7 @@ impl fmt::Debug for Syn {
 
 /// Error returned by [`FromStr`] implementations when no matching variant was found.
 ///
-/// Indicates that the supplied string does not refer to a known key constant.
+/// Indicates that the supplied string does not refer to a known constant.
 #[derive(Debug, PartialEq, Eq)]
 pub struct UnknownVariant {
     _p: (),

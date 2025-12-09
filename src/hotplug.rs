@@ -198,6 +198,14 @@ impl HotplugEvent {
         &self.path
     }
 
+    /// Consumes the [`HotplugEvent`], returning the device path it refers to.
+    ///
+    /// Can be used to get the device path without cloning it.
+    #[inline]
+    pub fn into_path(self) -> PathBuf {
+        self.path
+    }
+
     /// Opens the [`Evdev`] indicated by this event.
     ///
     /// This operation is always blocking, and may block for a significant amount of time.

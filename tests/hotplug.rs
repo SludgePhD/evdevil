@@ -27,10 +27,11 @@ fn main() -> io::Result<()> {
         thread::sleep(Duration::from_millis(25));
 
         for res in &mon {
-            let dev = res?.open()?;
+            let event = res?;
+            let dev = event.open()?;
             let name = dev.name()?;
             if name == DEVICE_NAME {
-                println!("success! found test device at {}", dev.path().display());
+                println!("success! found test device at {}", event.path().display());
                 return Ok(());
             } else {
                 println!("found non-matching device '{name}'");

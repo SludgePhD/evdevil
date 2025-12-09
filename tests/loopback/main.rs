@@ -51,25 +51,15 @@ fn setup() -> io::Result<Tester> {
     'outer: while retries > 0 {
         retries -= 1;
 
-        for res in evdevil::enumerate()? {
-            let res = || -> io::Result<Option<_>> {
-                let evdev = res?;
-                if evdev.name()? == TEST_DEVICE_NAME {
-                    Ok(Some(evdev))
-                } else {
-                    Ok(None)
-                }
-            }();
-
+        for res in evdevil::enumerate()?.with_path() {
             match res {
-                Ok(None) => {}
-                Ok(Some(reader)) => {
-                    dev = Some(reader);
-                    break 'outer;
+                Ok((path, evdev)) => {
+                    if evdev.name()? == TEST_DEVICE_NAME {
+                        dev = Some((path, evdev));
+                        break 'outer;
+                    }
                 }
-                Err(e) => {
-                    eprintln!("error: {e}");
-                }
+                Err(e) => eprintln!("error: {e}"),
             }
         }
 
@@ -77,11 +67,11 @@ fn setup() -> io::Result<Tester> {
         println!("(retrying)");
     }
 
-    let evdev = dev.expect("could not find test device");
+    let (path, evdev) = dev.expect("could not find test device");
     println!(
         "opened test device '{}' at '{}'",
         evdev.name()?,
-        evdev.path().display(),
+        path.display(),
     );
 
     assert!(!evdev.is_readable()?);
@@ -89,6 +79,7 @@ fn setup() -> io::Result<Tester> {
     Ok(Tester {
         uinput,
         evdev: Some(evdev),
+        evdev_path: path,
         bg: None,
     })
 }
@@ -96,6 +87,7 @@ fn setup() -> io::Result<Tester> {
 struct Tester {
     uinput: UinputDevice,
     evdev: Option<Evdev>,
+    evdev_path: PathBuf,
     bg: Option<(Arc<Mutex<Option<Evdev>>>, JoinHandle<io::Result<()>>)>,
 }
 
@@ -366,7 +358,7 @@ fn test_sysname() -> io::Result<()> {
     path.push(sysname);
 
     println!("uinput sys path: {}", path.display());
-    println!("evdev path: {}", t.evdev().path().display());
+    println!("evdev path: {}", t.evdev_path.display());
 
     if cfg!(target_os = "linux") {
         for res in fs::read_dir(&path)? {
@@ -375,7 +367,7 @@ fn test_sysname() -> io::Result<()> {
                 let mut devpath = PathBuf::from("/dev/input/");
                 devpath.push(entry.file_name());
 
-                assert_eq!(devpath, t.evdev().path());
+                assert_eq!(devpath, t.evdev_path);
             }
         }
     }

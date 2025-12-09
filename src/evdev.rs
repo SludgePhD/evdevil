@@ -9,7 +9,7 @@ use std::{
         fd::{AsFd, AsRawFd, IntoRawFd},
         unix::prelude::{BorrowedFd, RawFd},
     },
-    path::{Path, PathBuf},
+    path::Path,
     slice,
     time::Instant,
 };
@@ -61,7 +61,6 @@ use crate::{
 #[derive(Debug)]
 pub struct Evdev {
     pub(crate) file: File,
-    path: PathBuf,
 }
 
 impl AsFd for Evdev {
@@ -111,6 +110,13 @@ impl Evdev {
     }
 
     fn open_impl(path: &Path) -> io::Result<Self> {
+        const PREFIX: &[u8] = b"/dev/input/event";
+        if path.as_os_str().as_encoded_bytes().starts_with(PREFIX) {
+            return Self::open_unchecked(path);
+        }
+
+        // If the path is not in `/dev/input/event*`, it might be a symlink or relative path
+        // pointing there.
         let path = path.canonicalize()?;
         if !path
             .as_os_str()
@@ -126,11 +132,11 @@ impl Evdev {
             ));
         }
 
-        Self::open_unchecked(path)
+        Self::open_unchecked(&path)
     }
 
     /// Opens `path` without checking that it is one of the `/dev/input/event*` paths.
-    pub(crate) fn open_unchecked(path: PathBuf) -> io::Result<Self> {
+    pub(crate) fn open_unchecked(path: &Path) -> io::Result<Self> {
         let now = Instant::now();
 
         let file = match Self::try_open(&path) {
@@ -142,11 +148,11 @@ impl Evdev {
                 ));
             }
         };
-        let this = Self { file, path };
+        let this = Self { file };
         let version = this.driver_version()?;
         log::debug!(
             "opened '{}' in {:?}; driver version {version}",
-            this.path().display(),
+            path.display(),
             now.elapsed(),
         );
         Ok(this)
@@ -176,12 +182,6 @@ impl Evdev {
         }
 
         File::options().write(true).open(path)
-    }
-
-    /// Returns the (canonicalized) file system path this [`Evdev`] has been created from.
-    #[inline]
-    pub fn path(&self) -> &Path {
-        &self.path
     }
 
     /// Moves this handle into or out of non-blocking mode.
@@ -217,7 +217,6 @@ impl Evdev {
     pub fn try_clone(&self) -> io::Result<Self> {
         Ok(Self {
             file: self.file.try_clone()?,
-            path: self.path.clone(),
         })
     }
 
@@ -234,12 +233,16 @@ impl Evdev {
                 #[derive(Debug)]
                 struct WrappedError {
                     cause: io::Error,
-                    msg: String,
+                    ioctl: &'static str,
                 }
 
                 impl fmt::Display for WrappedError {
                     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                        f.write_str(&self.msg)
+                        write!(f, "ioctl {} failed", self.ioctl)?;
+                        if let Some(code) = self.cause.raw_os_error() {
+                            write!(f, " with error code {code}")?;
+                        }
+                        write!(f, " ({})", self.cause.kind())
                     }
                 }
                 impl Error for WrappedError {
@@ -248,12 +251,13 @@ impl Evdev {
                     }
                 }
 
-                let msg = format!(
-                    "ioctl {name} failed for device {} ({:?})",
-                    self.path().display(),
-                    e.kind()
-                );
-                Err(io::Error::new(e.kind(), WrappedError { cause: e, msg }))
+                Err(io::Error::new(
+                    e.kind(),
+                    WrappedError {
+                        cause: e,
+                        ioctl: name,
+                    },
+                ))
             }
         }
     }

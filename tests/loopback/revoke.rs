@@ -11,7 +11,7 @@ use crate::Tester;
 fn revoke() -> io::Result<()> {
     let t = Tester::get();
     let dev = t.evdev();
-    let dev2 = Evdev::open(t.evdev().path())?;
+    let dev2 = Evdev::open(&t.evdev_path)?;
     assert!(!dev2.is_readable()?);
 
     // After revocation, dev2 shouldn't receive any events anymore
