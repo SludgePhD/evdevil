@@ -6,7 +6,7 @@ use std::{
     io,
     mem::MaybeUninit,
     os::{
-        fd::{AsFd, AsRawFd, IntoRawFd},
+        fd::{AsFd, AsRawFd, IntoRawFd, OwnedFd},
         unix::prelude::{BorrowedFd, RawFd},
     },
     path::Path,
@@ -81,6 +81,13 @@ impl IntoRawFd for Evdev {
     #[inline]
     fn into_raw_fd(self) -> RawFd {
         self.file.into_raw_fd()
+    }
+}
+
+impl From<Evdev> for OwnedFd {
+    #[inline]
+    fn from(value: Evdev) -> Self {
+        value.file.into()
     }
 }
 
@@ -182,6 +189,19 @@ impl Evdev {
         }
 
         File::options().write(true).open(path)
+    }
+
+    /// Creates an [`Evdev`] instance from a bare file descriptor.
+    ///
+    /// # Safety
+    ///
+    /// `owned_fd` must refer to a character device managed by the input system.
+    /// If it doesn't, the evdev ioctls will be sent to the wrong driver, which may have a
+    /// colliding ioctl number with memory-unsafe semantics when invoked this way.
+    pub unsafe fn from_owned_fd(owned_fd: OwnedFd) -> Self {
+        Self {
+            file: File::from(owned_fd),
+        }
     }
 
     /// Moves this handle into or out of non-blocking mode.
