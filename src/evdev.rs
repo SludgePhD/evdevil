@@ -198,6 +198,7 @@ impl Evdev {
     /// `owned_fd` must refer to a character device managed by the input system.
     /// If it doesn't, the evdev ioctls will be sent to the wrong driver, which may have a
     /// colliding ioctl number with memory-unsafe semantics when invoked this way.
+    #[inline]
     pub unsafe fn from_owned_fd(owned_fd: OwnedFd) -> Self {
         Self {
             file: File::from(owned_fd),

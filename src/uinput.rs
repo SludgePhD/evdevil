@@ -12,7 +12,7 @@ use std::{
     fs::File,
     io, mem,
     os::{
-        fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd},
+        fd::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, OwnedFd},
         unix::{ffi::OsStringExt, prelude::RawFd},
     },
     ptr, slice,
@@ -419,12 +419,10 @@ impl IntoRawFd for UinputDevice {
     }
 }
 
-impl FromRawFd for UinputDevice {
+impl From<UinputDevice> for OwnedFd {
     #[inline]
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
-        Self {
-            file: unsafe { File::from_raw_fd(fd) },
-        }
+    fn from(value: UinputDevice) -> Self {
+        value.file.into()
     }
 }
 
@@ -437,6 +435,20 @@ impl UinputDevice {
     /// allowed to open `/dev/uinput` with read and write permission.
     pub fn builder() -> io::Result<Builder> {
         Builder::new()
+    }
+
+    /// Creates a [`UinputDevice`] instance from a bare file descriptor.
+    ///
+    /// # Safety
+    ///
+    /// `owned_fd` must refer to a uinput character device (not to an `evdev`!).
+    /// If it doesn't, the uinput ioctls will be sent to the wrong driver, which may have a
+    /// colliding ioctl number with memory-unsafe semantics when invoked this way.
+    #[inline]
+    pub unsafe fn from_owned_fd(owned_fd: OwnedFd) -> Self {
+        Self {
+            file: owned_fd.into(),
+        }
     }
 
     /// Moves this handle into or out of non-blocking mode.
