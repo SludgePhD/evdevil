@@ -15,6 +15,7 @@ use std::{
     iter::{self, FusedIterator, zip},
     ops::RangeInclusive,
     os::fd::{AsFd, AsRawFd, BorrowedFd, IntoRawFd, RawFd},
+    slice,
     sync::Arc,
     time::{Instant, SystemTime},
 };
@@ -104,7 +105,9 @@ impl MtStorage {
         if !abs_axes.contains(Abs::MT_TRACKING_ID) {
             log::warn!(
                 "device {} advertises support for `ABS_MT_SLOT` but not `ABS_MT_TRACKING_ID`; multitouch support will not work",
-                evdev.name().unwrap_or_else(|e| e.to_string()),
+                evdev
+                    .name()
+                    .unwrap_or_else(|e| format!("(failed to fetch name: {e})")),
             );
             return Ok(this);
         }
@@ -258,19 +261,45 @@ impl MtStorage {
     }
 
     /// Iterator over all slot indices with valid data in them.
-    fn valid_slots(&self) -> impl Iterator<Item = Slot> + '_ {
-        self.group_for_code(Abs::MT_TRACKING_ID)
-            .unwrap_or(&[])
-            .iter()
-            .enumerate()
-            .filter_map(|(slot, id)| {
-                if *id == -1 {
-                    None
-                } else {
-                    Some(Slot::from(slot as u16))
-                }
-            })
+    fn valid_slots(&self) -> ValidSlots<'_> {
+        ValidSlots {
+            iter: self
+                .group_for_code(Abs::MT_TRACKING_ID)
+                .unwrap_or(&[])
+                .iter()
+                .enumerate(),
+        }
     }
+}
+
+/// An [`Iterator`] over the multitouch [`Slot`] indices that contain valid data.
+///
+/// Returned by [`EventReader::valid_slots`].
+#[derive(Debug)]
+pub struct ValidSlots<'a> {
+    iter: iter::Enumerate<slice::Iter<'a, i32>>,
+}
+
+impl<'a> Iterator for ValidSlots<'a> {
+    type Item = Slot;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let (slot, &id) = self.iter.next()?;
+            if id >= 0 {
+                return Some(Slot::from_raw(slot as i32));
+            }
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // We don't have a lower bound, since we might discard all items.
+        let upper = self.iter.len();
+        (0, Some(upper))
+    }
+}
+impl<'a> FusedIterator for ValidSlots<'a> {
+    // `slice::Iter` is fused, therefore `iter::Enumerate<I>` is fused.
 }
 
 #[derive(Debug)]
@@ -511,7 +540,7 @@ impl Impl {
         self.state.abs[abs.raw() as usize]
     }
 
-    fn valid_slots(&self) -> impl Iterator<Item = Slot> + '_ {
+    fn valid_slots(&self) -> ValidSlots<'_> {
         self.state.mt_storage.valid_slots()
     }
 
@@ -890,7 +919,7 @@ impl EventReader {
     /// Call [`EventReader::update`], or drain incoming events using the iterator interface in order
     /// to update the multitouch slot state.
     #[inline]
-    pub fn valid_slots(&self) -> impl Iterator<Item = Slot> + '_ {
+    pub fn valid_slots(&self) -> ValidSlots<'_> {
         self.imp.valid_slots()
     }
 
