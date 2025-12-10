@@ -69,8 +69,6 @@ pub fn enumerate() -> io::Result<Enumerate> {
 ///
 /// If opening the [`HotplugMonitor`] fails, this will degrade gracefully and only yield the
 /// currently plugged-in devices.
-///
-/// Note that the iterator may yield the same device multiple times.
 pub fn enumerate_hotplug() -> io::Result<EnumerateHotplug> {
     EnumerateHotplug::new()
 }
@@ -140,11 +138,10 @@ impl Iterator for Enumerate {
 /// Returned by [`enumerate_hotplug`].
 #[derive(Debug)]
 pub struct EnumerateHotplug {
+    // TODO: race-free enumeration that can't yield duplicates?
     current: Option<Enumerate>,
     monitor: Option<HotplugMonitor>,
     delay_ms: u32,
-    #[cfg(test)]
-    nonblocking: bool,
 }
 
 const INITIAL_DELAY: u32 = 250;
@@ -164,8 +161,6 @@ impl EnumerateHotplug {
             current: Some(enumerate()?),
             monitor,
             delay_ms: INITIAL_DELAY,
-            #[cfg(test)]
-            nonblocking: false,
         })
     }
 
@@ -192,7 +187,7 @@ impl EnumerateHotplug {
                 match HotplugMonitor::new() {
                     Ok(mon) => {
                         #[cfg(test)]
-                        mon.set_nonblocking(self.nonblocking).unwrap();
+                        mon.set_nonblocking(true).unwrap();
 
                         break self.monitor.insert(mon);
                     }
@@ -258,7 +253,6 @@ mod tests {
             current: None,
             monitor: None,
             delay_ms: 25,
-            nonblocking: true,
         };
 
         e.next(); // may be `None` or `Some` if an event arrived
