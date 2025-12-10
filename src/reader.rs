@@ -539,7 +539,7 @@ impl Impl {
         self.skip = 0;
     }
     fn next_report(&mut self, iface: &mut impl Interface) -> io::Result<Report> {
-        let end = match self
+        let end: usize = match self
             .incoming
             .iter()
             .skip(self.skip)
@@ -795,7 +795,9 @@ impl EventReader {
     /// Update the local device state by reading all available events from the kernel, and
     /// discarding them.
     ///
-    /// This does not block.
+    /// This does not block when no events are available. To avoid taking forever when the device
+    /// driver sends events faster than we can process them, it will process device reports until
+    /// some fixed limit is reached.
     ///
     /// This method can be used when the application isn't interested in processing events or
     /// reports itself, and only wants to know what the current state of the input device is.
@@ -806,21 +808,31 @@ impl EventReader {
     /// the [`EventReader::key_state`], [`EventReader::led_state`], and other [`EventReader`]
     /// methods without incurring any additional syscalls.
     pub fn update(&mut self) -> io::Result<()> {
+        // The kernel will allocate at most a 6*80=480 event buffer (for multitouch devices), so
+        // reading 512 *reports* should be plenty to exhaust it.
+        const MAX_REPORTS: usize = 512;
+
         let now = Instant::now();
-        let _d = on_drop(|| log::trace!("`EventReader::update` took {:?}", now.elapsed()));
 
         let was_nonblocking = self.evdev.set_nonblocking(true)?;
 
         let mut count = 0;
         let mut reports = self.reports();
-        let err = loop {
+        let mut err = None;
+        for _ in 0..MAX_REPORTS {
             match reports.next() {
-                None => break None,
+                None => break,
                 Some(Ok(_)) => count += 1,
-                Some(Err(e)) => break Some(e),
+                Some(Err(e)) => {
+                    err = Some(e);
+                    break;
+                }
             }
-        };
-        log::trace!("`EventReader::update` processed {count} events");
+        }
+        log::trace!(
+            "`EventReader::update` processed {count} reports in {:?}",
+            now.elapsed()
+        );
 
         let res = if !was_nonblocking {
             self.evdev.set_nonblocking(false).map(drop)
@@ -870,9 +882,10 @@ impl EventReader {
         self.imp.abs_state(abs)
     }
 
-    /// Returns an iterator that yields all [`Slot`]s that have valid data in them.
+    /// Returns an iterator that yields all multitouch [`Slot`]s that have valid data in them.
     ///
-    /// A [`Slot`] is considered valid if its value of [`Abs::MT_TRACKING_ID`] is non-negative.
+    /// A [`Slot`] is considered valid if its current value of [`Abs::MT_TRACKING_ID`] is
+    /// non-negative.
     ///
     /// Call [`EventReader::update`], or drain incoming events using the iterator interface in order
     /// to update the multitouch slot state.
@@ -955,7 +968,6 @@ impl EventReader {
     /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
     #[cfg(any(feature = "tokio", feature = "async-io"))]
-    #[inline]
     pub fn async_events(&mut self) -> io::Result<AsyncEvents<'_>> {
         AsyncEvents::new(self)
     }
@@ -968,7 +980,6 @@ impl EventReader {
     /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
     #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
     #[cfg(any(feature = "tokio", feature = "async-io"))]
-    #[inline]
     pub fn async_reports(&mut self) -> io::Result<AsyncReports<'_>> {
         AsyncReports::new(self)
     }
