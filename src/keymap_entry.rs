@@ -86,7 +86,16 @@ Therefore we have to make sure that we only use lengths that have the divine ble
 
 /// A raw scancode emitted by a keyboard.
 ///
-/// Can be constructed with [`From<u8>`], [`From<u16>`] and [`From<u32>`].
+/// Can be constructed from raw integers via [`From<u8>`], [`From<u16>`] and [`From<u32>`].
+///
+/// Each [`KeymapEntry`] maps a scancode to an evdev key code.
+/// The [`Scancode`] belonging to an entry can be fetched with [`KeymapEntry::scancode`].
+///
+/// The [`Scancode`] type is also used when modifying the keymap using the
+/// [`Evdev::set_keymap_entry`] and [`Evdev::set_keymap_entry_by_index`] functions.
+///
+/// [`Evdev::set_keymap_entry`]: crate::Evdev::set_keymap_entry
+/// [`Evdev::set_keymap_entry_by_index`]: crate::Evdev::set_keymap_entry_by_index
 #[derive(Clone, Copy)]
 pub struct Scancode {
     // NOTE: not currently canonicalized; there may be leading zeroes
