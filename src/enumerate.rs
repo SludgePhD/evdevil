@@ -57,6 +57,18 @@ pub fn enumerate() -> io::Result<Enumerate> {
 ///
 /// If opening the [`HotplugMonitor`] fails, this will degrade gracefully and only yield the
 /// currently plugged-in devices.
+///
+/// # Examples
+///
+/// ```no_run
+/// use evdevil::enumerate_hotplug;
+///
+/// for res in enumerate_hotplug()? {
+///     let (path, evdev) = res?;
+///     println!("{}: {}", path.display(), evdev.name()?);
+/// }
+/// # Ok::<_, std::io::Error>(())
+/// ```
 pub fn enumerate_hotplug() -> io::Result<EnumerateHotplug> {
     EnumerateHotplug::new()
 }
@@ -280,6 +292,11 @@ mod tests {
 
     #[test]
     fn hotplug_enumerate() {
+        if !fs::exists("/dev/uinput").unwrap() {
+            eprintln!("`/dev/uinput` doesn't exist, probably running under QEMU");
+            return;
+        }
+
         env_logger::builder()
             .filter_module(env!("CARGO_PKG_NAME"), log::LevelFilter::Debug)
             .init();
