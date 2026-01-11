@@ -688,7 +688,7 @@ impl Impl {
                     // According to the `libevdev` documentation, we we have to:
                     // - Drop all uncommitted events (events that weren't followed up by a `SYN_REPORT`).
                     // - Drop all *future* events until we get a `SYN_REPORT`.
-                    log::debug!("SYN_DROPPED: events were lost! resyncing");
+                    log::warn!("SYN_DROPPED: input events were lost! resyncing");
                     self.discard_events = true;
                     incoming.clear();
 

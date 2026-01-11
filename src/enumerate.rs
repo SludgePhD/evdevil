@@ -10,12 +10,14 @@
 
 use std::{
     cmp,
+    collections::HashMap,
     fs::{self, ReadDir},
     io,
     os::unix::fs::FileTypeExt as _,
     path::PathBuf,
     thread,
     time::Duration,
+    vec,
 };
 
 use crate::{Evdev, hotplug::HotplugMonitor};
@@ -118,8 +120,8 @@ impl Iterator for Enumerate {
 /// Returned by [`enumerate_hotplug`].
 #[derive(Debug)]
 pub struct EnumerateHotplug {
-    // TODO: race-free enumeration that can't yield duplicates?
-    current: Option<Enumerate>,
+    to_yield: vec::IntoIter<io::Result<(PathBuf, Evdev)>>,
+
     monitor: Option<HotplugMonitor>,
     delay_ms: u32,
 }
@@ -129,6 +131,8 @@ const MAX_DELAY: u32 = 8000;
 
 impl EnumerateHotplug {
     fn new() -> io::Result<Self> {
+        // The hotplug monitor has to be opened first, to ensure that devices plugged in during
+        // enumeration are not lost.
         let monitor = match HotplugMonitor::new() {
             Ok(m) => Some(m),
             Err(e) => {
@@ -137,8 +141,78 @@ impl EnumerateHotplug {
             }
         };
 
+        // If a device is plugged in during enumeration, it may be yielded twice: once from the
+        // `readdir`-based enumeration, and once from the hotplug event.
+        // To prevent that, we collect all `readdir` devices into a collection, and then drain all
+        // pending hotplug events, ignoring those that belong to devices that we've already
+        // collected (and that haven't been unplugged and replugged).
+        // The resulting collection of devices is then yielded to the application, followed by any
+        // hotplug events that arrive after the `readdir` enumeration is complete.
+
+        let mut results = Vec::new();
+        let mut path_map = HashMap::new();
+        for res in enumerate()? {
+            match res {
+                Ok((path, evdev)) => {
+                    let index = results.len();
+                    results.push(Ok((path.clone(), evdev)));
+                    path_map.insert(path, index);
+                }
+                Err(e) => results.push(Err(e)),
+            }
+        }
+        if cfg!(test) {
+            thread::sleep(Duration::from_millis(500));
+        }
+
+        if let Some(mon) = &monitor {
+            mon.set_nonblocking(true)?;
+
+            for res in mon {
+                let Ok(event) = res else {
+                    break;
+                };
+
+                match path_map.get(event.path()) {
+                    Some(&i) => {
+                        match &results[i] {
+                            Ok((path, evdev)) if evdev.driver_version().is_ok() => {
+                                // This device is still plugged in. Ignore this `HotplugEvent`.
+                                log::debug!("device at `{}` still present", path.display());
+                                continue;
+                            }
+                            _ => {
+                                // Try opening the device.
+                                log::debug!(
+                                    "device at `{}` unplugged or errored; reopening",
+                                    event.path().display()
+                                );
+                                results[i] = event.open().map(|evdev| (event.into_path(), evdev));
+                            }
+                        }
+                    }
+                    None => {
+                        // This is a device path we haven't seen before, so it's a newly plugged-in
+                        // device.
+                        log::debug!(
+                            "found new device during enumeration: {}",
+                            event.path().display()
+                        );
+                        let index = results.len();
+                        let res = event
+                            .open()
+                            .map(|evdev| (event.path().to_path_buf(), evdev));
+                        results.push(res);
+                        path_map.insert(event.into_path(), index);
+                    }
+                }
+            }
+
+            mon.set_nonblocking(false)?;
+        }
+
         Ok(Self {
-            current: Some(enumerate()?),
+            to_yield: results.into_iter(),
             monitor,
             delay_ms: INITIAL_DELAY,
         })
@@ -149,11 +223,8 @@ impl Iterator for EnumerateHotplug {
     type Item = io::Result<(PathBuf, Evdev)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(cur) = &mut self.current {
-            match cur.next() {
-                Some(res) => return Some(res),
-                None => self.current = None,
-            }
+        if let Some(res) = self.to_yield.next() {
+            return Some(res);
         }
 
         let mon = match &mut self.monitor {
@@ -191,17 +262,40 @@ impl Iterator for EnumerateHotplug {
 
 #[cfg(test)]
 mod tests {
+    use crate::{event::Key, uinput::UinputDevice};
+
     use super::*;
 
     #[test]
     fn hotplug_reconnect() {
         let mut e = EnumerateHotplug {
-            current: None,
+            to_yield: Vec::new().into_iter(),
             monitor: None,
             delay_ms: 25,
         };
 
         e.next(); // may be `None` or `Some` if an event arrived
         assert!(e.monitor.is_some());
+    }
+
+    #[test]
+    fn hotplug_enumerate() {
+        env_logger::builder()
+            .filter_module(env!("CARGO_PKG_NAME"), log::LevelFilter::Debug)
+            .init();
+
+        let h = thread::spawn(|| -> io::Result<()> {
+            thread::sleep(Duration::from_millis(5));
+            let _uinput = UinputDevice::builder()?
+                .with_keys([Key::BTN_LEFT])?
+                .build(&format!("@@@hotplugtest-early"))?;
+            thread::sleep(Duration::from_millis(1000));
+            Ok(())
+        });
+
+        let iter = enumerate_hotplug().unwrap();
+        drop(iter);
+
+        h.join().unwrap().unwrap();
     }
 }
