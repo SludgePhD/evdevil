@@ -4,6 +4,8 @@
 //! [`enumerate_hotplug`] function, which returns an iterator over all devices that are or will be
 //! plugged into the system.
 //!
+//! For more advanced use cases, the [`HotplugMonitor`] in this module can be used directly.
+//!
 //! # Platform Support
 //!
 //! Hotplug functionality is supported on Linux and FreeBSD, as follows:

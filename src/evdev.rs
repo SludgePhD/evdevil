@@ -55,6 +55,28 @@ use crate::{
 /// Since multiple [`Evdev`]s can refer to the same file handle, none of the methods require a
 /// mutable reference, again mirroring the API of [`TcpStream`].
 ///
+/// # Device Lifecycle
+///
+/// (the observations here were made on Linux, the behavior on FreeBSD may differ a bit)
+///
+/// When a device is plugged into the system, an unused device node `/dev/input/eventN` is
+/// allocated.
+///
+/// Initially, the device node will not yet be configured by `udev`, so it will start out with
+/// the kernel's default ownership and permissions (typically restricting the access to *root*).
+/// Once `udev` finishes configuring the device, it will send out the hotplug notification.
+///
+/// This means you might temporarily encounter devices you can't open, if `udev` hasn't configured
+/// them yet.
+///
+/// When a device is removed from the system, all operations performed on existing handles will
+/// fail with `ENODEV` to indicate that the device has been removed.
+/// This includes all `ioctl`-based operations, reads from the device, and writes of more than 0
+/// bytes, but excludes generic operations on the file descriptor (like `fcntl` and `dup`).
+///
+/// Additionally, unplugging the device immediately removes its allocated device node
+/// `/dev/input/eventN`, immediately freeing it up for another device.
+///
 /// [`TcpStream`]: std::net::TcpStream
 /// [`enumerate`]: crate::enumerate()
 /// [`enumerate_hotplug`]: crate::enumerate_hotplug
