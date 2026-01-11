@@ -7,7 +7,7 @@
 - Removed `FromRawFd` implementation of `UinputDevice`.
   - Replaced with `UinputDevice::from_owned_fd`.
 - Removed `Evdev::path` (`Evdev` no longer stores the path it was opened from).
-  - When using `enumerate`, call `.with_path()` to have the iterator yield the device path.
+  - `enumerate` and `enumerate_hotplug` now yield `(PathBuf, Evdev)`.
 - Removed all `MAX` and `CNT` constants from event code types.
 - Shortened lifetime of `Effect`s returned by `ForceFeedbackUpload` to be tied to `&self`.
 - Remove all `name` methods from event code types.
@@ -18,15 +18,17 @@
 
 - Added `raw` and `from_raw` functions to all types that wrap an integer and didn't already have them.
 - Added `Switch::USB_INSERT`.
-- Added `.with_path()` combinator to the `Enumerate` and `EnumerateHotplug` iterators, providing an
-  iterator that yields `(PathBuf, Evdev)` instead of just the `Evdev`.
+- Yield paths alongside devices when enumerating.
 - Document more clearly that new enumeration constants can be added in minor releases.
+- Document the `evdev` device lifecycle.
 - Add a few missing setters to force-feedback types.
 - `EventReader::valid_slots` now returns a real iterator type instead of `impl Iterator`.
 
 ### Fixes
 
 - Limit number of reports processed by `EventReader::update`, to prevent getting stuck in there forever.
+- Made `enumerate_hotplug()` more robust, avoiding duplicate devices.
+- Don't wrap `ENODEV` in a custom error, making it easier to detect unplugged devices.
 
 
 ## v0.3.5
