@@ -100,9 +100,9 @@ impl Evdev {
     ///
     /// # Permissions
     ///
-    /// This method will attempt to open `path` with read-write permissions (allowing methods based
-    /// on [`Evdev::write`] to work), fall back to read-only permissions if the current user
-    /// does not have read and write permissions, and finally fall back to write-only permissions.
+    /// This method will attempt to open `path` with read-write permissions, fall back to read-only
+    /// permissions if the current user does not have read and write permissions, and finally fall
+    /// back to write-only permissions.
     ///
     /// If all of these attempts fail with a [`io::ErrorKind::PermissionDenied`] error, this method
     /// will return that error to the caller.
@@ -146,7 +146,7 @@ impl Evdev {
     pub(crate) fn open_unchecked(path: &Path) -> io::Result<Self> {
         let now = Instant::now();
 
-        let file = match Self::try_open(&path) {
+        let file = match Self::try_open(path) {
             Ok(file) => file,
             Err(e) => {
                 return Err(io::Error::new(

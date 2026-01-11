@@ -21,7 +21,7 @@ fn main() {
 }
 
 fn run() -> io::Result<()> {
-    for res in evdevil::enumerate()?.with_path() {
+    for res in evdevil::enumerate()? {
         let (path, device) = res?;
         println!("- {}", path.display());
         println!("  id: {:?}", device.input_id()?);

@@ -51,7 +51,7 @@ fn setup() -> io::Result<Tester> {
     'outer: while retries > 0 {
         retries -= 1;
 
-        for res in evdevil::enumerate()?.with_path() {
+        for res in evdevil::enumerate()? {
             match res {
                 Ok((path, evdev)) => {
                     if evdev.name()? == TEST_DEVICE_NAME {

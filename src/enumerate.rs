@@ -28,26 +28,12 @@ use crate::{Evdev, hotplug::HotplugMonitor};
 ///
 /// # Examples
 ///
-/// Standard usage:
-///
 /// ```
 /// use evdevil::enumerate;
 ///
 /// for res in enumerate()? {
-///     let evdev = res?;
-///     println!("{}", evdev.name()?);
-/// }
-/// # Ok::<_, std::io::Error>(())
-/// ```
-///
-/// With device paths:
-///
-/// ```
-/// use evdevil::enumerate;
-///
-/// for res in enumerate()?.with_path() {
 ///     let (path, evdev) = res?;
-///     println!("{} – {}", path.display(), evdev.name()?);
+///     println!("{}: {}", path.display(), evdev.name()?);
 /// }
 /// # Ok::<_, std::io::Error>(())
 /// ```
@@ -76,19 +62,18 @@ pub fn enumerate_hotplug() -> io::Result<EnumerateHotplug> {
 /// Iterator over evdev devices on the system.
 ///
 /// Returned by [`enumerate`].
+///
+/// If a device is plugged into the system after [`enumerate`] has been called, it is unspecified
+/// whether [`Enumerate`] will yield the new device.
 #[derive(Debug)]
 pub struct Enumerate {
     read_dir: ReadDir,
 }
 
-impl Enumerate {
-    /// Creates an adapter that will also yield the device's path from which it was opened.
-    #[inline]
-    pub fn with_path(self) -> WithPath<Self> {
-        WithPath { enumerate: self }
-    }
+impl Iterator for Enumerate {
+    type Item = io::Result<(PathBuf, Evdev)>;
 
-    fn next(&mut self) -> Option<io::Result<(PathBuf, Evdev)>> {
+    fn next(&mut self) -> Option<Self::Item> {
         loop {
             let entry = match self.read_dir.next()? {
                 Ok(ent) => ent,
@@ -119,17 +104,12 @@ impl Enumerate {
 
             match Evdev::open_unchecked(&path) {
                 Ok(dev) => return Some(Ok((path, dev))),
+                // If a device is unplugged in the middle of enumeration (before it can be opened),
+                // skip it, since yielding this error to the application is pretty useless.
+                Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
                 Err(e) => return Some(Err(e)),
             }
         }
-    }
-}
-
-impl Iterator for Enumerate {
-    type Item = io::Result<Evdev>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next().map(|res| res.map(|(_, dev)| dev))
     }
 }
 
@@ -163,14 +143,12 @@ impl EnumerateHotplug {
             delay_ms: INITIAL_DELAY,
         })
     }
+}
 
-    /// Creates an adapter that will also yield the device's path from which it was opened.
-    #[inline]
-    pub fn with_path(self) -> WithPath<Self> {
-        WithPath { enumerate: self }
-    }
+impl Iterator for EnumerateHotplug {
+    type Item = io::Result<(PathBuf, Evdev)>;
 
-    fn next(&mut self) -> Option<io::Result<(PathBuf, Evdev)>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if let Some(cur) = &mut self.current {
             match cur.next() {
                 Some(res) => return Some(res),
@@ -208,38 +186,6 @@ impl EnumerateHotplug {
                 Some(Err(e))
             }
         }
-    }
-}
-
-impl Iterator for EnumerateHotplug {
-    type Item = io::Result<Evdev>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next().map(|res| res.map(|(_, dev)| dev))
-    }
-}
-
-/// An [`Iterator`] that yields a device and the path it was opened from.
-///
-/// Returned by [`Enumerate::with_path`] and [`EnumerateHotplug::with_path`].
-#[derive(Debug)]
-pub struct WithPath<E> {
-    enumerate: E,
-}
-
-impl Iterator for WithPath<Enumerate> {
-    type Item = io::Result<(PathBuf, Evdev)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.enumerate.next()
-    }
-}
-
-impl Iterator for WithPath<EnumerateHotplug> {
-    type Item = io::Result<(PathBuf, Evdev)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.enumerate.next()
     }
 }
 
