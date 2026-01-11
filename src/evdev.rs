@@ -272,13 +272,22 @@ impl Evdev {
                     }
                 }
 
-                Err(io::Error::new(
-                    e.kind(),
-                    WrappedError {
-                        cause: e,
-                        ioctl: name,
-                    },
-                ))
+                if e.raw_os_error() == Some(libc::ENODEV) {
+                    // `ENODEV` currently has no corresponding `ErrorKind` variant, so wrapping the
+                    // error would make it difficult to detect unplugged devices.
+                    // So instead we just return the original error.
+                    Err(e)
+                } else {
+                    // Wrap the original I/O error in `WrappedError` to include additional
+                    // information.
+                    Err(io::Error::new(
+                        e.kind(),
+                        WrappedError {
+                            cause: e,
+                            ioctl: name,
+                        },
+                    ))
+                }
             }
         }
     }
