@@ -41,16 +41,16 @@ macro_rules! ffi_enum {
                 }
             }
 
-            /// Returns the raw value wrapped by `self`.
-            #[inline]
-            $v const fn raw(self) -> $native {
-                self.0
-            }
-
             /// Creates a new value from its raw representation.
             #[inline]
             $v const fn from_raw(raw: $native) -> Self {
                 Self(raw)
+            }
+
+            /// Returns the raw value wrapped by `self`.
+            #[inline]
+            $v const fn raw(self) -> $native {
+                self.0
             }
         }
     };
