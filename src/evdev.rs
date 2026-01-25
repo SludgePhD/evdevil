@@ -55,6 +55,19 @@ use crate::{
 /// Since multiple [`Evdev`]s can refer to the same file handle, none of the methods require a
 /// mutable reference, again mirroring the API of [`TcpStream`].
 ///
+/// # Blocking Drop
+///
+/// When an [`Evdev`] is dropped, the underlying file descriptor is closed, which can block for a
+/// considerable amount of time (50-100 ms).
+/// This is happening in the evdev subsystem in the kernel, so there is not much userspace can do
+/// about that.
+///
+/// If this delay is a problem for your application, there are several options:
+///
+/// - Send the [`Evdev`] to another thread and drop it there.
+/// - [`mem::forget`][std::mem::forget] the [`Evdev`] and leak the file descriptor, if that leak is
+///   acceptable for your application.
+///
 /// # Device Lifecycle
 ///
 /// (the observations here were made on Linux, the behavior on FreeBSD may differ a bit)

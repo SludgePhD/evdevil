@@ -410,7 +410,7 @@ impl Effect<'_> {
     /// By default, effects use ID `-1`, which is appropriate when uploading a new effect to a
     /// device (the input subsystem will allocate an ID for the effect).
     ///
-    /// The ID can be set to a existing [`EffectId`] in order to reconfigure an already uploaded
+    /// The ID can be set to an existing [`EffectId`] in order to reconfigure an already uploaded
     /// effect.
     #[inline]
     pub fn with_id(mut self, id: EffectId) -> Self {
