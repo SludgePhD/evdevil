@@ -24,7 +24,7 @@ This library provides an interface to the Linux and FreeBSD input device subsyst
 
 ## Rust Version Support
 
-This library targets the latest Rust version.
+This library targets the latest stable Rust version.
 
 Older Rust versions are supported by equally older versions of this crate. For example, to use a
 version of Rust that was succeeded 6 months ago, you'd also use an at least 6 month old version of
