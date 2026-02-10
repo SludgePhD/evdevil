@@ -654,7 +654,7 @@ impl Evdev {
     /// Devices that support keymaps and have internal scancodes will typically send a
     /// [`Misc::SCAN`] event immediately before a key press or release event.
     ///
-    /// Return `Ok(None)` when `index` is out of range.
+    /// Return `Ok(None)` when the [`Scancode`] is not in the keymap.
     #[doc(alias = "EVIOCGKEYCODE_V2")]
     pub fn keymap_entry(&self, code: Scancode) -> io::Result<Option<KeymapEntry>> {
         unsafe {
