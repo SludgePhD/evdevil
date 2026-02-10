@@ -449,6 +449,11 @@ impl Evdev {
     }
 
     /// Returns the set of supported [`EventType`]s.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// Linux includes [`EventType::SYN`] in the returned list, while FreeBSD omits it, despite
+    /// also emitting `SYN` events (at least in FreeBSD 14 and 15).
     #[doc(alias = "EVIOCGBIT")]
     pub fn supported_events(&self) -> io::Result<BitSet<EventType>> {
         unsafe { self.fetch_bits("EVIOCGBIT", |len| EVIOCGBIT(0, len)) }

@@ -446,6 +446,12 @@ impl UinputDevice {
     /// Moves this handle into or out of non-blocking mode.
     ///
     /// Returns whether the [`UinputDevice`] was previously in non-blocking mode.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// Non-blocking mode for `uinput` devices is not supported on FreeBSD ([#16]).
+    ///
+    /// [#16]: https://github.com/SludgePhD/evdevil/issues/16
     pub fn set_nonblocking(&self, nonblocking: bool) -> io::Result<bool> {
         set_nonblocking(self.as_raw_fd(), nonblocking)
     }
