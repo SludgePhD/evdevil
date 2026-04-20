@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.1
+
+### Fixes
+
+- Don't clamp the value of absolute axes in `EventReader`.
+  - This fixes usage with certain drivers that deliberately send out-of-range axis values.
+
+
 ## v0.4.0
 
 ### Breaking Changes
