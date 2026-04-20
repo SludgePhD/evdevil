@@ -340,8 +340,11 @@ impl DeviceState {
         for (i, value) in abs.iter_mut().enumerate() {
             let axis = Abs::from_raw(i as _);
             if abs_axes.contains(axis) {
+                // We use the raw (unclamped) value here, since some drivers use out-of-range values
+                // to signal certain conditions, and we don't filter/clamp the normal events either.
+                // Note that `uinput` *does* clamp the values in the kernel, so we can't test this.
                 let info = evdev.abs_info(axis)?;
-                *value = info.value();
+                *value = info.raw_value();
             }
         }
 
