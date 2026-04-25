@@ -60,8 +60,6 @@ use crate::{
 ffi_enum! {
     /// Force feedback feature flags.
     ///
-    /// An alluring alliteration.
-    ///
     /// These feature flags can be queried with [`Evdev::supported_ff_features`] and indicate
     /// support for specific force-feedback effect types, waveforms, or control mechanisms.
     ///

@@ -1,4 +1,9 @@
 /// Key repeat settings.
+///
+/// Key repeat is configured using two values (both in milliseconds):
+///
+/// - The **`delay`** after the key has been pressed, after which key repeat events will be emitted.
+/// - The **`period`** between successive key repeat events.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 pub struct KeyRepeat {

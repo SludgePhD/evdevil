@@ -61,7 +61,7 @@ impl fmt::Debug for KeymapEntry {
 
 /*
 
-The Scripture states:
+The Scripture (drivers/input/input.c) states:
 
 switch (ke->len) {
 case 1:

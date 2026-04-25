@@ -113,8 +113,12 @@ ffi_enum! {
         /// If this event code is received, all preceding non-[`Syn`] events are committed to the
         /// receiving application without any lost events.
         REPORT = 0,
+        /// Unused.
         CONFIG = 1,
-        /// Unused. Used to be used for the legacy ("type A") multitouch protocol.
+        /// Unused.
+        ///
+        /// In the past, this was used for the legacy ("type A") multitouch protocol, which is no
+        /// longer used by any kernel drivers and is not supported by this crate.
         MT_REPORT = 2,
         /// Indicates that one or more events were dropped due to overflow.
         ///
@@ -976,8 +980,8 @@ ffi_enum! {
     ///
     /// This is the event code of [`SwitchEvent`][super::SwitchEvent]s.
     ///
-    /// Unlike [`Key`]s, switches are toggled instead of held, and do not support automatic key
-    /// repeat.
+    /// Unlike [`Key`]s, switches are toggled instead of held, and will not generate key repeat
+    /// events.
     pub enum Switch: u16 {
         LID                  = 0x00,
         TABLET_MODE          = 0x01,
@@ -1036,9 +1040,20 @@ ffi_enum! {
     ///
     /// This is the event code of [`MiscEvent`][super::MiscEvent]s.
     pub enum Misc: u16 {
+        /// Transducer serial number.
+        ///
+        /// Used to identify different transducer pens for some drawing tablets or touchscreens.
+        ///
+        /// Typically set to -1 to indicate that no transducer is in range.
         SERIAL    = 0x00,
+        /// Configure LED pulsing.
+        ///
+        /// Only used by the powermate driver.
+        /// The event value encodes a command to send to the device.
         PULSELED  = 0x01,
+        /// Unused.
         GESTURE   = 0x02,
+        /// Raw data event (device-specific).
         RAW       = 0x03,
         /// Scancode of the following [`KeyEvent`][super::KeyEvent].
         SCAN      = 0x04,
@@ -1166,7 +1181,9 @@ impl fmt::Debug for Led {
 ffi_enum! {
     /// Autorepeat setting.
     pub enum Repeat: u16 {
+        /// The delay after pressing the key, until repeat events are emitted.
         DELAY  = 0x00,
+        /// The period between successive key repeat events.
         PERIOD = 0x01,
     }
 }

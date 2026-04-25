@@ -617,6 +617,7 @@ impl RepeatEvent {
         Repeat(self.raw_code())
     }
 
+    /// The value in milliseconds.
     #[inline]
     pub fn value(&self) -> u32 {
         self.raw_value() as u32
