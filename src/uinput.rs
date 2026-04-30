@@ -574,6 +574,19 @@ impl UinputDevice {
         Events { file: &self.file }
     }
 
+    /// Reads incoming events into `buf`.
+    ///
+    /// This may read multiple events at once, which is more efficient than using
+    /// [`UinputDevice::events`] to read them one-by-one.
+    ///
+    /// - If the device is in blocking mode, this method will block until at least 1 event can be
+    ///   read.
+    /// - If the device is in non-blocking mode, this method will return an error of type
+    ///   [`io::ErrorKind::WouldBlock`] when there are no events to read.
+    pub fn read_events(&self, buf: &mut [InputEvent]) -> io::Result<usize> {
+        read_raw(&self.file, buf)
+    }
+
     /// Returns whether this device has any pending events that can be read without blocking.
     ///
     /// If this returns `true`, calling [`UinputDevice::events()`] and then calling
