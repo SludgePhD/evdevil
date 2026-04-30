@@ -4,6 +4,127 @@
 //!
 //! A [`UinputDevice`] can be created via [`UinputDevice::builder`] and will create a corresponding
 //! evdev input device that other applications (or *this* application) can read events from.
+//!
+//! # Sending Events
+//!
+//! At its core, a uinput device obtains input events from some device, and then sends them to the
+//! kernel using [`UinputDevice::write`].
+//!
+//! Here is a simple example that presses and releases a keyboard key:
+//!
+//! ```
+//! use evdevil::{event::{Key, KeyEvent, KeyState}, uinput::UinputDevice};
+//!
+//! let dev = UinputDevice::builder()?
+//!     .with_keys([Key::KEY_Q])?
+//!     .build("My Input Device")?;
+//!
+//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
+//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
+//! # std::io::Result::Ok(())
+//! ```
+//!
+//! Other types of controls such as axes are implemented similarly: register the axis using
+//! [`Builder::with_rel_axes`] or [`Builder::with_abs_axes`], and send events using
+//! [`UinputDevice::write`].
+//!
+//! # Receiving Events
+//!
+//! Device features that are initiated by userspace are implemented by reading events *from* the
+//! [`UinputDevice`], using either [`UinputDevice::events`] or [`UinputDevice::read_events`].
+//!
+//! Here is a simple example device with an LED that can be controlled from userspace:
+//!
+//! ```
+//! use evdevil::{event::{Key, Led, KeyEvent, KeyState, EventKind}, uinput::UinputDevice};
+//!
+//! let dev = UinputDevice::builder()?
+//!     .with_keys([Key::KEY_Q])?
+//!     .with_leds([Led::CAPSL])?
+//!     .build("My LED Device")?;
+//!
+//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
+//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
+//!
+//! // In another thread:
+//! # dev.set_nonblocking(true)?; // Make sure the test exits
+//! for res in dev.events() {
+//!     let event = res?;
+//!     println!("Received event: {event:?}");
+//!     match event.kind() {
+//!         EventKind::Led(ev) => {
+//!             println!("LED {:?} set to {}", ev.led(), if ev.is_on() { "on" } else { "off" });
+//!         },
+//!         _ => {}
+//!     }
+//! }
+//! # std::io::Result::Ok(())
+//! ```
+//!
+//! # Force-Feedback
+//!
+//! In evdev, force-feedback effects are used in two stages.
+//!
+//! 1. An effect is uploaded to the device using [`Evdev::upload_ff_effect`], yielding an
+//!    [`EffectId`] that identifies the uploaded effect.
+//! 2. The effect is started and stopped by sending a [`ForceFeedbackEvent`] to the device,
+//!    containing the [`EffectId`] (this can also be done by calling [`Evdev::control_ff`]).
+//!
+//! The uinput interface mirrors this approach.
+//!
+//! 1. When an evdev user requests an effect to be uploaded, a [`UinputEvent`] is enqueued for the
+//!   [`UinputDevice`]. The uinput driver reads the event and calls [`UinputDevice::ff_upload`] to
+//!   finish the upload.
+//! 2. When userspace starts or stops the effect, the [`UinputDevice`] receives the
+//!   [`ForceFeedbackEvent`] and acts accordingly.
+//!
+//! For this to work, [`Builder::with_ff_features`] and [`Builder::with_ff_effects_max`]
+//! have to be used to advertise the force-feedback support to other programs when creating the
+//! device.
+//!
+//! A uinput device that supports force-feedback effects and exposes an LED that can be controlled:
+//!
+//! ```
+//! use evdevil::event::{Rel, EventKind, Led, ForceFeedbackCode, UinputCode};
+//! use evdevil::{ff, uinput::UinputDevice};
+//!
+//! let dev = UinputDevice::builder()?
+//!     .with_rel_axes([Rel::DIAL])?
+//!     .with_ff_features([ff::Feature::RUMBLE])?
+//!     .with_ff_effects_max(5)?
+//!     .build("Rusty Rumbler")?;
+//! # dev.set_nonblocking(true)?; // Make sure the test exits
+//!
+//! for res in dev.events() {
+//!     let event = res?;
+//!     println!("Received event: {event:?}");
+//!     match event.kind() {
+//!         EventKind::Uinput(ev) => match ev.code() {
+//!             UinputCode::FF_UPLOAD => dev.ff_upload(&ev, |upl| {
+//!                 println!("Force-Feedback upload: {upl:?}");
+//!                 Ok(())
+//!             })?,
+//!             UinputCode::FF_ERASE => dev.ff_erase(&ev, |erase| {
+//!                 println!("Force-Feedback erase: {erase:?}");
+//!                 Ok(())
+//!             })?,
+//!             _ => {}
+//!         },
+//!         EventKind::ForceFeedback(ev) => match ev.code() {
+//!             Some(ForceFeedbackCode::ControlEffect(id)) => {
+//!                 println!("FF effect {id:?} set to {}", ev.raw_value());
+//!             },
+//!             _ => {}
+//!         },
+//!         _ => {}
+//!     }
+//! }
+//! # std::io::Result::Ok(())
+//! ```
+//!
+//! [`Evdev::upload_ff_effect`]: crate::Evdev::upload_ff_effect
+//! [`Evdev::control_ff`]: crate::Evdev::control_ff
+//! [`ForceFeedbackEvent`]: crate::event::ForceFeedbackEvent
 
 use std::{
     error::Error,
@@ -381,6 +502,8 @@ impl Builder {
 }
 
 /// A virtual `uinput` device.
+///
+/// Please refer to the [module documentation][self] for more information on how to use this.
 #[derive(Debug)]
 pub struct UinputDevice {
     // NOTE: we deliberately don't call `UI_DEV_DESTROY` on drop, since there can be multiple

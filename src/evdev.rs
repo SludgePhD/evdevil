@@ -592,7 +592,7 @@ impl Evdev {
     /// Revokes device access from this [`Evdev`] handle.
     ///
     /// This prevents this handle from receiving any more input events, and makes writes and ioctls
-    /// (including later calls to this one) fail with `ENODEV`.
+    /// (including later calls to `revoke()`) fail with `ENODEV`.
     #[doc(alias = "EVIOCREVOKE")]
     pub fn revoke(&self) -> io::Result<()> {
         unsafe {
