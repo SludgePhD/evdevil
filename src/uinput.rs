@@ -47,7 +47,7 @@
 //! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
 //!
 //! // In another thread:
-//! # dev.set_nonblocking(true)?; // Make sure the test exits
+//! # return Ok(());  // Don't block
 //! for res in dev.events() {
 //!     let event = res?;
 //!     println!("Received event: {event:?}");
@@ -93,7 +93,7 @@
 //!     .with_ff_features([ff::Feature::RUMBLE])?
 //!     .with_ff_effects_max(5)?
 //!     .build("Rusty Rumbler")?;
-//! # dev.set_nonblocking(true)?; // Make sure the test exits
+//! # return Ok(());  // Don't block
 //!
 //! for res in dev.events() {
 //!     let event = res?;
