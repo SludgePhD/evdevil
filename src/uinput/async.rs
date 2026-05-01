@@ -50,6 +50,10 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(
+        target_os = "freebsd",
+        ignore = "FreeBSD does not support non-blocking uinput devices"
+    )]
     fn smoke() -> io::Result<()> {
         let (uinput, evdev) = pair(|b| b.with_leds([Led::CAPSL]))?;
 
