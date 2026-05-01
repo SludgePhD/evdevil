@@ -126,6 +126,12 @@
 //! [`Evdev::control_ff`]: crate::Evdev::control_ff
 //! [`ForceFeedbackEvent`]: crate::event::ForceFeedbackEvent
 
+mod r#async;
+
+#[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
+#[cfg(any(feature = "tokio", feature = "async-io"))]
+pub use r#async::AsyncEvents;
+
 use std::{
     error::Error,
     ffi::{CStr, CString, OsString, c_char, c_int},
@@ -666,7 +672,7 @@ impl UinputDevice {
     /// Returns an iterator over events *received* by this [`UinputDevice`].
     ///
     /// If the device exposes any of the following functionality, it should read events that trigger
-    /// it from this iterator and act accordingly:
+    /// the functionality from this iterator and act accordingly:
     ///
     /// - LEDs (via [`Builder::with_leds`]).
     /// - Sounds (via [`Builder::with_sounds`]).
@@ -695,6 +701,25 @@ impl UinputDevice {
     #[inline]
     pub fn events(&self) -> Events<'_> {
         Events { file: &self.file }
+    }
+
+    /// Returns an async iterator over incoming events.
+    ///
+    /// The underlying device will be put in non-blocking mode while the returned [`AsyncEvents`]
+    /// is alive (if it isn't already).
+    ///
+    /// When using the `"tokio"` Cargo feature, this must be called while inside a tokio context.
+    ///
+    /// # Platform-specific behavior
+    ///
+    /// This functionality does not work on FreeBSD, as non-blocking mode for `uinput` devices
+    /// is not supported there ([#16]).
+    ///
+    /// [#16]: https://github.com/SludgePhD/evdevil/issues/16
+    #[cfg_attr(docsrs, doc(cfg(any(feature = "tokio", feature = "async-io"))))]
+    #[cfg(any(feature = "tokio", feature = "async-io"))]
+    pub fn async_events(&self) -> io::Result<AsyncEvents<'_>> {
+        AsyncEvents::new(self)
     }
 
     /// Reads incoming events into `buf`.
@@ -908,8 +933,9 @@ impl<'a> EventWriter<'a> {
     /// functionality.
     ///
     /// This will write 2 [`RepeatEvent`]s: one with [`Repeat::PERIOD`] and one with
-    /// [`Repeat::DELAY`]. The uinput system will immediately echo both events back to the
-    /// [`UinputDevice`], and to every connected `evdev` client.
+    /// [`Repeat::DELAY`].
+    /// Both events will be sent to every connected `evdev` client, and on Linux, they will also
+    /// be echoed back to the [`UinputDevice`].
     pub fn set_key_repeat(self, rep: KeyRepeat) -> io::Result<Self> {
         self.write(&[
             RepeatEvent::new(Repeat::PERIOD, rep.period()).into(),
