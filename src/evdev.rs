@@ -311,6 +311,7 @@ impl Evdev {
                     // `ENODEV` currently has no corresponding `ErrorKind` variant, so wrapping the
                     // error would make it difficult to detect unplugged devices.
                     // So instead we just return the original error.
+                    // https://github.com/rust-lang/rust/issues/130193
                     Err(e)
                 } else {
                     // Wrap the original I/O error in `WrappedError` to include additional

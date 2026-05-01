@@ -35,7 +35,7 @@ use crate::{Evdev, hotplug::HotplugMonitor};
 ///
 /// for res in enumerate()? {
 ///     let (path, evdev) = res?;
-///     println!("{}: {}", path.display(), evdev.name()?);
+///     println!("{}: {:?}", path.display(), evdev.name());
 /// }
 /// # Ok::<_, std::io::Error>(())
 /// ```
@@ -65,7 +65,7 @@ pub fn enumerate() -> io::Result<Enumerate> {
 ///
 /// for res in enumerate_hotplug()? {
 ///     let (path, evdev) = res?;
-///     println!("{}: {}", path.display(), evdev.name()?);
+///     println!("{}: {:?}", path.display(), evdev.name());
 /// }
 /// # Ok::<_, std::io::Error>(())
 /// ```
@@ -120,6 +120,8 @@ impl Iterator for Enumerate {
                 Ok(dev) => return Some(Ok((path, dev))),
                 // If a device is unplugged in the middle of enumeration (before it can be opened),
                 // skip it, since yielding this error to the application is pretty useless.
+                // Note that callers still have to handle the device disappearing immediately,
+                // which is surfaced as getting `ENODEV` from all operations.
                 Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
                 Err(e) => return Some(Err(e)),
             }
