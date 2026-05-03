@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.4.3
+
+### Improvements
+
+- Add `EffectId::{from_raw, raw}` to allow conversion from/to raw integers.
+- Map `ENODEV` to `ErrorKind::NotFound` when opening an `Evdev` (instead of `ErrorKind::Uncategorized`).
+
 ## v0.4.2
 
 ### Improvements
@@ -82,7 +89,6 @@
 - Run CI on aarch64 Linux (GNU and musl).
 - Add the crate to the `os::freebsd-apis` category on crates.io.
 
-
 ## v0.3.3
 
 - Try to fix the docs.rs render.
@@ -124,6 +130,7 @@ Only reading events asynchronously via the `EventReader` is supported for now.
 - Add `Report::len`, returning the number of events in the `Report`.
 - Device enumeration iterators have been made real types instead of `impl Iterator` and moved to
   the `enumerate` module.
+
 
 ## v0.2.3
 
