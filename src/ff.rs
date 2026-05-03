@@ -175,8 +175,26 @@ impl fmt::Debug for Waveform {
 ///
 /// This ID type is used to refer to the uploaded effects and can be used to trigger, stop, or erase
 /// them.
+///
+/// Valid effect IDs are generally non-negative integers starting at 0.
+/// An effect ID of -1 is used when uploading a new effect, and will be replaced with the effect's
+/// assigned ID by the kernel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EffectId(pub(crate) i16);
+
+impl EffectId {
+    /// Creates an [`EffectId`] from a raw [`i16`].
+    #[inline]
+    pub const fn from_raw(raw: i16) -> Self {
+        Self(raw)
+    }
+
+    /// Returns the effect ID as a raw [`i16`].
+    #[inline]
+    pub const fn raw(self) -> i16 {
+        self.0
+    }
+}
 
 /// Configures which button triggers an effect (if any).
 ///
