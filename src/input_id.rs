@@ -123,4 +123,12 @@ mod tests {
         assert_eq!(format!("{:?}", Bus::USB), "BUS_USB");
         assert_eq!(format!("{:?}", Bus(0xffff)), "Bus(0xffff)");
     }
+
+    #[test]
+    fn input_id_debug() {
+        assert_eq!(
+            format!("{:?}", InputId::new(Bus::PARPORT, 0x1234, 0x5678, 0x0102)),
+            "InputId { bustype: BUS_PARPORT, vendor: 0x1234, product: 0x5678, version: 0x0102 }"
+        );
+    }
 }
