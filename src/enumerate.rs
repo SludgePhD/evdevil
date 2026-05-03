@@ -24,9 +24,14 @@ use crate::{Evdev, hotplug::HotplugMonitor};
 
 /// Enumerates all currently plugged-in [`Evdev`] devices.
 ///
-/// Performing enumeration can block for a significant amount of time while opening the *evdev*
-/// device files. In user-facing applications, it is recommended to perform enumeration in a
-/// background thread.
+/// Performing enumeration can block for a significant amount of time while opening and closing the
+/// *evdev* device files.
+/// In user-facing applications, it is recommended to perform enumeration in a background thread.
+///
+/// # Errors
+///
+/// Since devices can disappear at any time, including during enumeration, applications must be
+/// prepared to handle errors from all [`Evdev`] methods gracefully.
 ///
 /// # Examples
 ///
@@ -34,8 +39,10 @@ use crate::{Evdev, hotplug::HotplugMonitor};
 /// use evdevil::enumerate;
 ///
 /// for res in enumerate()? {
-///     let (path, evdev) = res?;
-///     println!("{}: {:?}", path.display(), evdev.name());
+///     match res {
+///         Ok((path, evdev)) => println!("{}: {:?}", path.display(), evdev.name()),
+///         Err(e) => eprintln!("error during device enumeration: {e}"),
+///     }
 /// }
 /// # Ok::<_, std::io::Error>(())
 /// ```
@@ -64,8 +71,10 @@ pub fn enumerate() -> io::Result<Enumerate> {
 /// use evdevil::enumerate_hotplug;
 ///
 /// for res in enumerate_hotplug()? {
-///     let (path, evdev) = res?;
-///     println!("{}: {:?}", path.display(), evdev.name());
+///     match res {
+///         Ok((path, evdev)) => println!("{}: {:?}", path.display(), evdev.name()),
+///         Err(e) => eprintln!("error during device enumeration: {e}"),
+///     }
 /// }
 /// # Ok::<_, std::io::Error>(())
 /// ```
