@@ -1,12 +1,19 @@
 # Changelog
 
+## v0.4.2
+
+### Improvements
+
+- Add `UinputDevice::async_events` for asynchronously reading from a uinput device.
+- Add `UinputDevice::read_events` to mirror `Evdev::read_events`.
+- Minor documentation improvements.
+
 ## v0.4.1
 
 ### Fixes
 
 - Don't clamp the value of absolute axes in `EventReader`.
   - This fixes usage with certain drivers that deliberately send out-of-range axis values.
-
 
 ## v0.4.0
 
