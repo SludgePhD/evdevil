@@ -13,14 +13,14 @@ rust-version = "1.85"  # (keep this in sync with ci.yaml)
 libc = "0.2.172"
 uoctl = "1.0.1"
 log = "0.4.27"
-serde = { version = "1.0.219", optional = true }
+serde_core = { version = "1.0.219", optional = true }
 tokio = { version = "1.46.1", default-features = false, optional = true, features = ["net"] }
 async-io = { version = "2.4.1", default-features = false, optional = true }
 
 [features]
 
 # Implements `Serialize` and `Deserialize` for event code types like `Key`, `Rel`, `Abs` etc.
-serde = ["dep:serde"]
+serde = ["dep:serde_core"]
 
 # Enables `async` functionality using the Tokio runtime and reactor.
 tokio = ["dep:tokio"]
@@ -35,7 +35,7 @@ env_logger = "0.11.8"
 tokio = { version = "1", default-features = false, features = ["rt"] }
 
 # for testing the serde feature:
-serde = "1.0.219"
+serde_core = "1.0.219"
 csv = "1.3.1"
 postcard = { version = "1.1", features = ["alloc"], default-features = false }
 

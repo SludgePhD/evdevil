@@ -2,7 +2,7 @@
 
 use std::{any::type_name, fmt, marker::PhantomData, str::FromStr};
 
-use serde::{Deserialize, Serialize, de};
+use serde_core::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 use crate::event::{Abs, Key, Led, Misc, Rel, Sound, Switch};
 
@@ -86,7 +86,7 @@ macro_rules! serde_impls {
             impl<'a> Deserialize<'a> for $t {
                 fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
                 where
-                    D: serde::Deserializer<'a>,
+                    D: Deserializer<'a>,
                 {
                     if deserializer.is_human_readable() {
                         // For human-readable formats, codes can be provided either as names
@@ -105,7 +105,7 @@ macro_rules! serde_impls {
             impl Serialize for $t {
                 fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where
-                    S: serde::Serializer,
+                    S: Serializer,
                 {
                     if serializer.is_human_readable() {
                         // For human-readable formats, we prefer the textual name if there is one.
