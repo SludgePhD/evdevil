@@ -82,8 +82,8 @@
 //!
 //! [`FromStr`]: std::str::FromStr
 //! [`Evdev::set_clockid`]: crate::Evdev::set_clockid
-//! [`Serialize`]: ::serde::Serialize
-//! [`Deserialize`]: ::serde::Deserialize
+//! [`Serialize`]: ::serde_core::Serialize
+//! [`Deserialize`]: ::serde_core::Deserialize
 //! [postcard]: https://github.com/jamesmunns/postcard
 
 pub(crate) mod codes;
