@@ -256,6 +256,7 @@ ffi_enum! {
         KEY_KP3          = 81,
         KEY_KP0          = 82,
         KEY_KPDOT        = 83,
+
         KEY_ZENKAKUHANKAKU = 85,
         KEY_102ND        = 86,
         KEY_F11          = 87,
@@ -292,6 +293,7 @@ ffi_enum! {
         KEY_KPPLUSMINUS  = 118,
         KEY_PAUSE        = 119,
         KEY_SCALE        = 120,
+
         KEY_KPCOMMA      = 121,
         KEY_HANGEUL      = 122,
         KEY_HANGUEL      = Self::KEY_HANGEUL.0,
@@ -300,6 +302,7 @@ ffi_enum! {
         KEY_LEFTMETA     = 125,
         KEY_RIGHTMETA    = 126,
         KEY_COMPOSE      = 127,
+
         KEY_STOP         = 128,
         KEY_AGAIN        = 129,
         KEY_PROPS        = 130,
@@ -357,6 +360,7 @@ ffi_enum! {
         KEY_KPRIGHTPAREN = 180,
         KEY_NEW          = 181,
         KEY_REDO         = 182,
+
         KEY_F13          = 183,
         KEY_F14          = 184,
         KEY_F15          = 185,
@@ -369,6 +373,7 @@ ffi_enum! {
         KEY_F22          = 192,
         KEY_F23          = 193,
         KEY_F24          = 194,
+
         KEY_PLAYCD       = 200,
         KEY_PAUSECD      = 201,
         KEY_PROG3        = 202,
@@ -397,20 +402,25 @@ ffi_enum! {
         KEY_BRIGHTNESSDOWN = 224,
         KEY_BRIGHTNESSUP = 225,
         KEY_MEDIA        = 226,
+
         KEY_SWITCHVIDEOMODE = 227,
         KEY_KBDILLUMTOGGLE = 228,
         KEY_KBDILLUMDOWN = 229,
         KEY_KBDILLUMUP   = 230,
+
         KEY_SEND         = 231,
         KEY_REPLY        = 232,
         KEY_FORWARDMAIL  = 233,
         KEY_SAVE         = 234,
         KEY_DOCUMENTS    = 235,
         KEY_BATTERY      = 236,
+
         KEY_BLUETOOTH    = 237,
         KEY_WLAN         = 238,
         KEY_UWB          = 239,
+
         KEY_UNKNOWN      = 240,
+
         KEY_VIDEO_NEXT   = 241,
         KEY_VIDEO_PREV   = 242,
         KEY_BRIGHTNESS_CYCLE = 243,
@@ -421,6 +431,7 @@ ffi_enum! {
         KEY_WIMAX        = Self::KEY_WWAN.0,
         KEY_RFKILL       = 247,
         KEY_MICMUTE      = 248,
+
         BTN_MISC         = 0x100,
         BTN_0            = 0x100,
         BTN_1            = 0x101,
@@ -432,6 +443,7 @@ ffi_enum! {
         BTN_7            = 0x107,
         BTN_8            = 0x108,
         BTN_9            = 0x109,
+
         BTN_MOUSE        = 0x110,
         BTN_LEFT         = 0x110,
         BTN_RIGHT        = 0x111,
@@ -441,6 +453,7 @@ ffi_enum! {
         BTN_FORWARD      = 0x115,
         BTN_BACK         = 0x116,
         BTN_TASK         = 0x117,
+
         BTN_JOYSTICK     = 0x120,
         BTN_TRIGGER      = 0x120,
         BTN_THUMB        = 0x121,
@@ -455,6 +468,7 @@ ffi_enum! {
         BTN_BASE5        = 0x12a,
         BTN_BASE6        = 0x12b,
         BTN_DEAD         = 0x12f,
+
         BTN_SOUTH        = 0x130, // (reordered since this is a better canon. name)
         BTN_GAMEPAD      = 0x130,
         BTN_A            = Self::BTN_SOUTH.0,
@@ -475,6 +489,7 @@ ffi_enum! {
         BTN_MODE         = 0x13c,
         BTN_THUMBL       = 0x13d,
         BTN_THUMBR       = 0x13e,
+
         BTN_DIGI         = 0x140,
         BTN_TOOL_PEN     = 0x140,
         BTN_TOOL_RUBBER  = 0x141,
@@ -492,9 +507,11 @@ ffi_enum! {
         BTN_TOOL_DOUBLETAP = 0x14d,
         BTN_TOOL_TRIPLETAP = 0x14e,
         BTN_TOOL_QUADTAP = 0x14f,
+
         BTN_WHEEL        = 0x150,
         BTN_GEAR_DOWN    = 0x150,
         BTN_GEAR_UP      = 0x151,
+
         KEY_OK           = 0x160,
         KEY_SELECT       = 0x161,
         KEY_GOTO         = 0x162,
@@ -580,8 +597,10 @@ ffi_enum! {
         KEY_BRIGHTNESS_TOGGLE = Self::KEY_DISPLAYTOGGLE.0,
         KEY_SPELLCHECK   = 0x1b0,
         KEY_LOGOFF       = 0x1b1,
+
         KEY_DOLLAR       = 0x1b2,
         KEY_EURO         = 0x1b3,
+
         KEY_FRAMEBACK    = 0x1b4,
         KEY_FRAMEFORWARD = 0x1b5,
         KEY_CONTEXT_MENU = 0x1b6,
@@ -593,10 +612,12 @@ ffi_enum! {
         KEY_PICKUP_PHONE = 0x1bd,
         KEY_HANGUP_PHONE = 0x1be,
         KEY_LINK_PHONE   = 0x1bf,
+
         KEY_DEL_EOL      = 0x1c0,
         KEY_DEL_EOS      = 0x1c1,
         KEY_INS_LINE     = 0x1c2,
         KEY_DEL_LINE     = 0x1c3,
+
         KEY_FN           = 0x1d0,
         KEY_FN_ESC       = 0x1d1,
         KEY_FN_F1        = 0x1d2,
@@ -619,6 +640,7 @@ ffi_enum! {
         KEY_FN_S         = 0x1e3,
         KEY_FN_B         = 0x1e4,
         KEY_FN_RIGHT_SHIFT = 0x1e5,
+
         KEY_BRL_DOT1     = 0x1f1,
         KEY_BRL_DOT2     = 0x1f2,
         KEY_BRL_DOT3     = 0x1f3,
@@ -629,6 +651,7 @@ ffi_enum! {
         KEY_BRL_DOT8     = 0x1f8,
         KEY_BRL_DOT9     = 0x1f9,
         KEY_BRL_DOT10    = 0x1fa,
+
         KEY_NUMERIC_0    = 0x200,
         KEY_NUMERIC_1    = 0x201,
         KEY_NUMERIC_2    = 0x202,
@@ -645,28 +668,40 @@ ffi_enum! {
         KEY_NUMERIC_B    = 0x20d,
         KEY_NUMERIC_C    = 0x20e,
         KEY_NUMERIC_D    = 0x20f,
+
         KEY_CAMERA_FOCUS = 0x210,
         KEY_WPS_BUTTON   = 0x211,
+
         KEY_TOUCHPAD_TOGGLE = 0x212,
         KEY_TOUCHPAD_ON  = 0x213,
         KEY_TOUCHPAD_OFF = 0x214,
+
         KEY_CAMERA_ZOOMIN = 0x215,
         KEY_CAMERA_ZOOMOUT = 0x216,
         KEY_CAMERA_UP    = 0x217,
         KEY_CAMERA_DOWN  = 0x218,
         KEY_CAMERA_LEFT  = 0x219,
         KEY_CAMERA_RIGHT = 0x21a,
+
         KEY_ATTENDANT_ON = 0x21b,
         KEY_ATTENDANT_OFF = 0x21c,
         KEY_ATTENDANT_TOGGLE = 0x21d,
         KEY_LIGHTS_TOGGLE = 0x21e,
+
         BTN_DPAD_UP      = 0x220,
         BTN_DPAD_DOWN    = 0x221,
         BTN_DPAD_LEFT    = 0x222,
         BTN_DPAD_RIGHT   = 0x223,
+
+        BTN_GRIPL		 = 0x224,
+        BTN_GRIPR		 = 0x225,
+        BTN_GRIPL2		 = 0x226,
+        BTN_GRIPR2		 = 0x227,
+
         KEY_ALS_TOGGLE   = 0x230,
         KEY_ROTATE_LOCK_TOGGLE = 0x231,
         KEY_REFRESH_RATE_TOGGLE = 0x232,
+
         KEY_BUTTONCONFIG = 0x240,
         KEY_TASKMANAGER  = 0x241,
         KEY_JOURNAL      = 0x242,
@@ -683,22 +718,36 @@ ffi_enum! {
         KEY_CAMERA_ACCESS_TOGGLE = 0x24d,
         KEY_ACCESSIBILITY = 0x24e,
         KEY_DO_NOT_DISTURB = 0x24f,
+
         KEY_BRIGHTNESS_MIN = 0x250,
         KEY_BRIGHTNESS_MAX = 0x251,
+
+        KEY_EPRIVACY_SCREEN_ON		= 0x252,
+        KEY_EPRIVACY_SCREEN_OFF		= 0x253,
+        // see also: KEY_PRIVACY_SCREEN_TOGGLE
+
+        // Buttons for the slop machine, apparently
+        KEY_ACTION_ON_SELECTION		= 0x254,
+        KEY_CONTEXTUAL_INSERT		= 0x255,
+        KEY_CONTEXTUAL_QUERY		= 0x256,
+
         KEY_KBDINPUTASSIST_PREV = 0x260,
         KEY_KBDINPUTASSIST_NEXT = 0x261,
         KEY_KBDINPUTASSIST_PREVGROUP = 0x262,
         KEY_KBDINPUTASSIST_NEXTGROUP = 0x263,
         KEY_KBDINPUTASSIST_ACCEPT = 0x264,
         KEY_KBDINPUTASSIST_CANCEL = 0x265,
+
         KEY_RIGHT_UP     = 0x266,
         KEY_RIGHT_DOWN   = 0x267,
         KEY_LEFT_UP      = 0x268,
         KEY_LEFT_DOWN    = 0x269,
+
         KEY_ROOT_MENU    = 0x26a,
         KEY_MEDIA_TOP_MENU = 0x26b,
         KEY_NUMERIC_11   = 0x26c,
         KEY_NUMERIC_12   = 0x26d,
+
         KEY_AUDIO_DESC   = 0x26e,
         KEY_3D_MODE      = 0x26f,
         KEY_NEXT_FAVORITE = 0x270,
@@ -711,10 +760,14 @@ ffi_enum! {
         KEY_DATA         = 0x277,
         KEY_ONSCREEN_KEYBOARD = 0x278,
         KEY_PRIVACY_SCREEN_TOGGLE = 0x279,
+
         KEY_SELECTIVE_SCREENSHOT = 0x27a,
+
         KEY_NEXT_ELEMENT = 0x27b,
         KEY_PREVIOUS_ELEMENT = 0x27c,
+
         KEY_AUTOPILOT_ENGAGE_TOGGLE = 0x27d,
+
         KEY_MARK_WAYPOINT = 0x27e,
         KEY_SOS          = 0x27f,
         KEY_NAV_CHART    = 0x280,
@@ -727,6 +780,7 @@ ffi_enum! {
         KEY_SIDEVU_SONAR = 0x287,
         KEY_NAV_INFO     = 0x288,
         KEY_BRIGHTNESS_MENU = 0x289,
+
         KEY_MACRO1       = 0x290,
         KEY_MACRO2       = 0x291,
         KEY_MACRO3       = 0x292,
@@ -757,17 +811,22 @@ ffi_enum! {
         KEY_MACRO28      = 0x2ab,
         KEY_MACRO29      = 0x2ac,
         KEY_MACRO30      = 0x2ad,
+
         KEY_MACRO_RECORD_START = 0x2b0,
         KEY_MACRO_RECORD_STOP = 0x2b1,
         KEY_MACRO_PRESET_CYCLE = 0x2b2,
         KEY_MACRO_PRESET1 = 0x2b3,
         KEY_MACRO_PRESET2 = 0x2b4,
         KEY_MACRO_PRESET3 = 0x2b5,
+
         KEY_KBD_LCD_MENU1 = 0x2b8,
         KEY_KBD_LCD_MENU2 = 0x2b9,
         KEY_KBD_LCD_MENU3 = 0x2ba,
         KEY_KBD_LCD_MENU4 = 0x2bb,
         KEY_KBD_LCD_MENU5 = 0x2bc,
+
+        KEY_PERFORMANCE   = 0x2bd,
+
         BTN_TRIGGER_HAPPY = 0x2c0,
         BTN_TRIGGER_HAPPY1 = 0x2c0,
         BTN_TRIGGER_HAPPY2 = 0x2c1,
@@ -922,10 +981,15 @@ ffi_enum! {
         TILT_X         = 0x1a,
         TILT_Y         = 0x1b,
         TOOL_WIDTH     = 0x1c,
+
         VOLUME         = 0x20,
         PROFILE        = 0x21,
+        SND_PROFILE    = 0x22,
+
         MISC           = 0x28,
+
         RESERVED       = 0x2e,
+
         /// Changes the active multitouch slot.
         MT_SLOT        = 0x2f,
         MT_TOUCH_MAJOR = 0x30,
