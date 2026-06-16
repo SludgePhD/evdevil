@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.4.4
+
+### Improvements
+
+- Add new event codes from upstream.
+- Depend on `serde_core` instead of `serde` when the `"serde"` feature is enabled.
+- Don't report `ENODEV` errors to callers when enumerating devices that disappeared.
+- Document the possible error types when opening a device.
+
 ## v0.4.3
 
 ### Improvements
