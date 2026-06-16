@@ -144,8 +144,14 @@ impl Evdev {
     ///
     /// # Errors
     ///
-    /// This method will return an error if `path` doesn't refer to a path matching
-    /// `/dev/input/event*` (after resolving symlinks).
+    /// - An [`io::ErrorKind::InvalidInput`] error will be returned if `path` doesn't refer to a
+    ///   path matching `/dev/input/event*` (after resolving symlinks).
+    /// - A [`io::ErrorKind::PermissionDenied`] error will be returned if the user does not have
+    ///   permission to open the device in read-write, write-only, or read-only mode.
+    /// - An [`io::ErrorKind::NotFound`] error, **or** an error with [`io::Error::raw_os_error`]
+    ///   code set to `ENODEV` will be returned when the device does not exist, or disappears while
+    ///   it is being opened.
+    /// - Other error types can also be returned if the underlying system calls return them.
     pub fn open<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path = path.as_ref();
         Self::open_impl(path)
