@@ -45,7 +45,7 @@ impl Drop for AsyncHelper {
         }
 
         if let Err(e) = set_nonblocking(self.fd, false) {
-            log::error!("failed to move fd back into blocking mode: {e}");
+            error!("failed to move fd back into blocking mode: {e}");
         }
     }
 }

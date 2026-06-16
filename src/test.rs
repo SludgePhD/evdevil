@@ -36,7 +36,7 @@ pub fn pair(b: impl FnOnce(Builder) -> io::Result<Builder>) -> io::Result<(Uinpu
             Err(e) => {
                 // This can happen when an unrelated device (likely created by another test) shows
                 // up first, and disappears before we can check its name.
-                log::warn!("got error while waiting for '{name}' to appear: {e}");
+                warn!("got error while waiting for '{name}' to appear: {e}");
             }
         }
     }

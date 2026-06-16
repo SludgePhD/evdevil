@@ -106,7 +106,7 @@ impl super::HotplugImpl for Impl {
                     continue;
                 };
 
-                log::trace!("incoming devd message: {}", msg.escape_ascii());
+                trace!("incoming devd message: {}", msg.escape_ascii());
 
                 let mut system_devfs = false;
                 let mut subsys_cdev = false;
@@ -135,12 +135,12 @@ impl super::HotplugImpl for Impl {
                         let mut path = PathBuf::from("/dev/");
                         path.push(OsStr::from_bytes(cdev));
 
-                        log::debug!("match! trying to open: {}", path.display());
+                        debug!("match! trying to open: {}", path.display());
                         return Ok(HotplugEvent { path });
                     }
                 }
 
-                log::trace!("no match");
+                trace!("no match");
             }
         }
     }

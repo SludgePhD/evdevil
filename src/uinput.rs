@@ -240,7 +240,7 @@ impl Builder {
         unsafe {
             let mut version = 0;
             device.ioctl("UI_GET_VERSION", UI_GET_VERSION, &mut version)?;
-            log::debug!("opened /dev/uinput; version={version:#x}");
+            debug!("opened /dev/uinput; version={version:#x}");
         }
         Ok(Self {
             device,
@@ -618,7 +618,7 @@ impl UinputDevice {
                     }
                 }
 
-                log::trace!("ioctl {name} failed with error {e} ({:?})", e.kind());
+                trace!("ioctl {name} failed with error {e} ({:?})", e.kind());
                 let msg = format!("ioctl {name} failed ({:?})", e.kind());
                 Err(io::Error::new(e.kind(), WrappedError { cause: e, msg }))
             }
@@ -783,7 +783,7 @@ impl UinputDevice {
         upload.0.request_id = request.raw_value() as u32;
 
         let now = Instant::now();
-        let _d = on_drop(|| log::trace!("`ff_upload` took {:?}", now.elapsed()));
+        let _d = on_drop(|| trace!("`ff_upload` took {:?}", now.elapsed()));
         unsafe {
             self.ioctl("UI_BEGIN_FF_UPLOAD", UI_BEGIN_FF_UPLOAD, &mut upload.0)?;
         }
@@ -796,7 +796,7 @@ impl UinputDevice {
                 let errno = e
                     .raw_os_error()
                     .unwrap_or_else(|| errorkind2libc(e.kind()).unwrap_or(libc::EIO));
-                log::debug!(
+                debug!(
                     "ff_upload handler errored: {e} ({:?}, OS error: {os_err:?}) -> code {errno}",
                     e.kind()
                 );
@@ -843,7 +843,7 @@ impl UinputDevice {
                 let errno = e
                     .raw_os_error()
                     .unwrap_or_else(|| errorkind2libc(e.kind()).unwrap_or(libc::EIO));
-                log::debug!(
+                debug!(
                     "ff_erase handler errored: {e} ({:?}, OS error: {os_err:?}) -> code {errno}",
                     e.kind()
                 );
@@ -981,7 +981,7 @@ impl Drop for EventWriter<'_> {
         // If this is called after `finish`, `needs_syn_report` will be `false`, and the call to
         // `self.batch.flush` will do nothing.
         if let Err(e) = self.finish_impl() {
-            log::error!("uncaught error in `EventWriter` destructor: {e}");
+            error!("uncaught error in `EventWriter` destructor: {e}");
         }
     }
 }

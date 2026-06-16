@@ -103,7 +103,7 @@ impl MtStorage {
             return Ok(this);
         }
         if !abs_axes.contains(Abs::MT_TRACKING_ID) {
-            log::warn!(
+            warn!(
                 "device {} advertises support for `ABS_MT_SLOT` but not `ABS_MT_TRACKING_ID`; multitouch support will not work",
                 evdev
                     .name()
@@ -114,15 +114,14 @@ impl MtStorage {
 
         let mt_slot_info = evdev.abs_info(Abs::MT_SLOT)?;
         if mt_slot_info.minimum() != 0 {
-            log::warn!("`ABS_MT_SLOT` has a non-0 minimum: {:?}", mt_slot_info);
+            warn!("`ABS_MT_SLOT` has a non-0 minimum: {:?}", mt_slot_info);
         }
 
         let slot_count = mt_slot_info.maximum().saturating_add(1);
         if mt_slot_info.maximum() > MAX_MT_SLOTS {
-            log::warn!(
+            warn!(
                 "`ABS_MT_SLOT` declares too many slots: {:?} (only the first {} will be used)",
-                mt_slot_info,
-                MAX_MT_SLOTS,
+                mt_slot_info, MAX_MT_SLOTS,
             );
         }
         this.slots = slot_count.clamp(0, MAX_MT_SLOTS) as u32;
@@ -417,7 +416,7 @@ impl DeviceState {
         // It is useful after the `EventReader` is just constructed though, since the event would
         // otherwise be missing.
         if !queue.is_empty() {
-            log::debug!(
+            debug!(
                 "resync injected {} events -> adding SYN_REPORT",
                 queue.len()
             );
@@ -434,7 +433,7 @@ impl DeviceState {
     /// - `queue` will either be empty, or its last element will be a SYN_REPORT.
     fn resync(&mut self, evdev: &Evdev, queue: &mut VecDeque<InputEvent>) -> io::Result<()> {
         let now = Instant::now();
-        let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
+        let _d = on_drop(|| debug!("`EventReader::resync` took {:?}", now.elapsed()));
 
         // Clear out all events, and drain the kernel buffer too, like libevdev does.
         let mut reads = 0;
@@ -447,7 +446,7 @@ impl DeviceState {
             reads += 1;
         }
         if reads >= READ_LIMIT {
-            log::warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
+            warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
         }
 
         self.resync_from(&DeviceState::current(evdev)?, queue);
@@ -691,7 +690,7 @@ impl Impl {
                     // According to the `libevdev` documentation, we we have to:
                     // - Drop all uncommitted events (events that weren't followed up by a `SYN_REPORT`).
                     // - Drop all *future* events until we get a `SYN_REPORT`.
-                    log::warn!("SYN_DROPPED: input events were lost! resyncing");
+                    warn!("SYN_DROPPED: input events were lost! resyncing");
                     self.discard_events = true;
                     incoming.clear();
 
@@ -724,7 +723,7 @@ impl Interface for Evdev {
 
     fn resync(&self, state: &mut DeviceState, queue: &mut VecDeque<InputEvent>) -> io::Result<()> {
         let now = Instant::now();
-        let _d = on_drop(|| log::debug!("`EventReader::resync` took {:?}", now.elapsed()));
+        let _d = on_drop(|| debug!("`EventReader::resync` took {:?}", now.elapsed()));
 
         // Clear out all events, and drain the kernel buffer too, like libevdev does.
         let mut reads = 0;
@@ -737,7 +736,7 @@ impl Interface for Evdev {
             reads += 1;
         }
         if reads >= READ_LIMIT {
-            log::warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
+            warn!("resync: kernel buffer not empty after {reads}x{READ_SIZE} reads");
         }
 
         state.resync_from(&DeviceState::current(self)?, queue);
@@ -861,7 +860,7 @@ impl EventReader {
                 }
             }
         }
-        log::trace!(
+        trace!(
             "`EventReader::update` processed {count} reports in {:?}",
             now.elapsed()
         );

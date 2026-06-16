@@ -15,6 +15,7 @@ This library provides an interface to the Linux and FreeBSD input device subsyst
 
 |  Feature   | Description |
 |------------|-------------|
+| `log`      | Logs internal operations using the [`log`] crate (enabled by default). |
 | `serde`    | Implements `Serialize` and `Deserialize` for many event code wrappers like `Key`, `Rel`, etc. |
 | `tokio`    | Uses [Tokio] to enable `async` event reading. |
 | `async-io` | Uses [`async-io`] to enable `async` event reading. |
@@ -22,6 +23,7 @@ This library provides an interface to the Linux and FreeBSD input device subsyst
 The `tokio` and `async-io` features are mutually exclusive.
 Compilation will fail if both are enabled.
 
+[`log`]: https://github.com/rust-lang/log
 [Tokio]: https://github.com/tokio-rs/tokio
 [`async-io`]: https://github.com/smol-rs/async-io
 

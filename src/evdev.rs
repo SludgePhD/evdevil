@@ -198,7 +198,7 @@ impl Evdev {
         };
         let this = Self { file };
         let version = this.driver_version()?;
-        log::debug!(
+        debug!(
             "opened '{}' in {:?}; driver version {version}",
             path.display(),
             now.elapsed(),
@@ -210,7 +210,7 @@ impl Evdev {
         match File::options().read(true).write(true).open(path) {
             Ok(file) => return Ok(file),
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                log::warn!(
+                warn!(
                     "no permission to open '{}' in read-write mode, retrying in read-only",
                     path.display()
                 );
@@ -221,7 +221,7 @@ impl Evdev {
         match File::options().read(true).open(path) {
             Ok(file) => return Ok(file),
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
-                log::warn!(
+                warn!(
                     "no permission to open '{}' in read-only mode, retrying in write-only",
                     path.display()
                 );
@@ -861,12 +861,12 @@ impl Evdev {
         self.upload_ff_effect_impl(effect.into())
     }
     fn upload_ff_effect_impl(&self, mut effect: ff::Effect<'_>) -> io::Result<ff::EffectId> {
-        log::trace!("uploading FF effect: {:?}", effect);
+        trace!("uploading FF effect: {:?}", effect);
         let now = Instant::now();
         unsafe {
             self.ioctl("EVIOCSFF", EVIOCSFF, &mut effect.raw)?;
         }
-        log::debug!("upload_ff_effect: ioctl took {:?}", now.elapsed());
+        debug!("upload_ff_effect: ioctl took {:?}", now.elapsed());
 
         Ok(ff::EffectId(effect.raw.id))
     }

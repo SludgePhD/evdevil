@@ -164,7 +164,7 @@ impl EnumerateHotplug {
         let monitor = match HotplugMonitor::new() {
             Ok(m) => Some(m),
             Err(e) => {
-                log::warn!("couldn't open hotplug monitor: {e}; device hotplug will not work");
+                warn!("couldn't open hotplug monitor: {e}; device hotplug will not work");
                 None
             }
         };
@@ -206,12 +206,12 @@ impl EnumerateHotplug {
                         match &results[i] {
                             Ok((path, evdev)) if evdev.driver_version().is_ok() => {
                                 // This device is still plugged in. Ignore this `HotplugEvent`.
-                                log::debug!("device at `{}` still present", path.display());
+                                debug!("device at `{}` still present", path.display());
                                 continue;
                             }
                             _ => {
                                 // Try opening the device.
-                                log::debug!(
+                                debug!(
                                     "device at `{}` unplugged or errored; reopening",
                                     event.path().display()
                                 );
@@ -222,7 +222,7 @@ impl EnumerateHotplug {
                     None => {
                         // This is a device path we haven't seen before, so it's a newly plugged-in
                         // device.
-                        log::debug!(
+                        debug!(
                             "found new device during enumeration: {}",
                             event.path().display()
                         );
@@ -268,7 +268,7 @@ impl Iterator for EnumerateHotplug {
 
                         break self.monitor.insert(mon);
                     }
-                    Err(e) => log::warn!("hotplug monitor reconnect failed: {e}"),
+                    Err(e) => warn!("hotplug monitor reconnect failed: {e}"),
                 }
             },
         };

@@ -177,10 +177,9 @@ impl InputEvent {
         match self.try_time() {
             Some(time) => time,
             None => {
-                log::warn!(
+                warn!(
                     "`input_event` timestamp out of range of `SystemTime`: tv_sec={} tv_usec={}",
-                    self.0.time.tv_sec,
-                    self.0.time.tv_usec,
+                    self.0.time.tv_sec, self.0.time.tv_usec,
                 );
                 SystemTime::UNIX_EPOCH
             }

@@ -140,21 +140,20 @@ impl super::HotplugImpl for Impl {
 
             let buflen = unsafe { cvt_r(|| recvmsg(self.as_raw_fd(), &mut msg, 0))? };
             if buflen < 32 || buflen >= buf.len() as isize {
-                log::debug!("ignoring message: recvmsg returned invalid message of {buflen} bytes");
+                debug!("ignoring message: recvmsg returned invalid message of {buflen} bytes");
                 continue;
             }
 
-            log::trace!(
+            trace!(
                 "got {buflen} byte message from pid {} (groups={})",
-                sender.nl_pid,
-                sender.nl_groups,
+                sender.nl_pid, sender.nl_groups,
             );
 
             if sender.nl_groups == 0 {
-                log::debug!("ignoring unicast message");
+                debug!("ignoring unicast message");
                 continue;
             } else if sender.nl_groups == MonitorNetlinkGroup::Kernel as _ && sender.nl_pid != 0 {
-                log::debug!(
+                debug!(
                     "ignoring kernel message from non-kernel process {}",
                     sender.nl_pid
                 );
@@ -167,22 +166,21 @@ impl super::HotplugImpl for Impl {
             // assertion to catch that.
             let cmsg = unsafe { CMSG_FIRSTHDR(&msg) };
             if cmsg.is_null() {
-                log::debug!("ignoring message: no credentials received");
+                debug!("ignoring message: no credentials received");
                 continue;
             }
             let cmsg_type = unsafe { cmsg.read_unaligned().cmsg_type };
             if cmsg_type != SCM_CREDENTIALS {
-                log::debug!(
+                debug!(
                     "ignoring message: received {} instead of {} (SCM_CREDENTIALS)",
-                    cmsg_type,
-                    SCM_CREDENTIALS,
+                    cmsg_type, SCM_CREDENTIALS,
                 );
                 continue;
             }
 
             let cred = unsafe { CMSG_DATA(cmsg).cast::<ucred>().read_unaligned() };
             if cred.uid != 0 {
-                log::debug!(
+                debug!(
                     "ignoring message: sent by uid {} instead of 0 (root)",
                     cred.uid
                 );
@@ -191,14 +189,14 @@ impl super::HotplugImpl for Impl {
 
             // At least the first 32 bytes of `buf` are valid.
             if !buf.starts_with(UDEV_PROLOG) {
-                log::debug!("ignoring message: doesn't start with magic 'libudev' string");
+                debug!("ignoring message: doesn't start with magic 'libudev' string");
                 continue;
             }
 
             let header: &udev_monitor_netlink_header = unsafe { &*buf.as_ptr().cast() };
-            log::trace!("udev message header: {header:?}");
+            trace!("udev message header: {header:?}");
             if header.magic != UDEV_MONITOR_MAGIC {
-                log::debug!(
+                debug!(
                     "ignoring message: mismatched magic number {:#?}",
                     identity(header.magic),
                 );
@@ -206,7 +204,7 @@ impl super::HotplugImpl for Impl {
             }
 
             if header.properties_off > buflen as c_uint - 32 {
-                log::debug!("invalid `properties_off`: {header:?}");
+                debug!("invalid `properties_off`: {header:?}");
                 continue;
             }
 
@@ -221,7 +219,7 @@ impl super::HotplugImpl for Impl {
                     continue;
                 }
                 let s = String::from_utf8_lossy(entry);
-                log::trace!("- {s}");
+                trace!("- {s}");
 
                 // We're interested in the `DEVNAME` property (path in `/dev`) of events with
                 // `SUBSYSTEM=input` and `ACTION=add`.
@@ -240,13 +238,13 @@ impl super::HotplugImpl for Impl {
                 if let Some(path) = devname {
                     if path.starts_with(b"/dev/input/event") {
                         let path = PathBuf::from(OsStr::from_bytes(path));
-                        log::debug!("match! got hotplug event for: {}", path.display());
+                        debug!("match! got hotplug event for: {}", path.display());
                         return Ok(HotplugEvent { path });
                     }
                 }
             }
 
-            log::trace!("no match");
+            trace!("no match");
         }
     }
 }
