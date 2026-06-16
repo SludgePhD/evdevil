@@ -131,7 +131,12 @@ impl Iterator for Enumerate {
                 // skip it, since yielding this error to the application is pretty useless.
                 // Note that callers still have to handle the device disappearing immediately,
                 // which is surfaced as getting `ENODEV` from all operations.
-                Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
+                Err(e)
+                    if e.kind() == io::ErrorKind::NotFound
+                        || e.raw_os_error() == Some(libc::ENODEV) =>
+                {
+                    continue;
+                }
                 Err(e) => return Some(Err(e)),
             }
         }
