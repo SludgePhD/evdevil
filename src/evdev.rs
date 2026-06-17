@@ -898,7 +898,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`LedEvent`]
     /// to the device.
     pub fn set_led(&self, led: Led, on: bool) -> io::Result<()> {
-        self.write(&[LedEvent::new(led, on).into()])
+        self.write_events(&[LedEvent::new(led, on).into()])
     }
 
     /// Starts or stops a force-feedback effect (eg. [`ff::Rumble`]).
@@ -909,7 +909,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn control_ff(&self, effect: ff::EffectId, active: bool) -> io::Result<()> {
-        self.write(&[ForceFeedbackEvent::control_effect(effect, active).into()])
+        self.write_events(&[ForceFeedbackEvent::control_effect(effect, active).into()])
     }
 
     /// Sets the global gain for force-feedback effects.
@@ -921,7 +921,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn set_ff_gain(&self, gain: u16) -> io::Result<()> {
-        self.write(&[ForceFeedbackEvent::control_gain(gain).into()])
+        self.write_events(&[ForceFeedbackEvent::control_gain(gain).into()])
     }
 
     /// Controls the autocenter feature for force-feedback effects.
@@ -933,7 +933,7 @@ impl Evdev {
     /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn set_ff_autocenter(&self, autocenter: u16) -> io::Result<()> {
-        self.write(&[ForceFeedbackEvent::control_autocenter(autocenter).into()])
+        self.write_events(&[ForceFeedbackEvent::control_autocenter(autocenter).into()])
     }
 
     /// Writes events to the device.
@@ -952,8 +952,14 @@ impl Evdev {
     ///
     /// If the [`Evdev`] does not have write permission, this method will fail with a
     /// [`io::ErrorKind::PermissionDenied`] error.
-    pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
+    pub fn write_events(&self, events: &[InputEvent]) -> io::Result<()> {
         write_raw(&self.file, events)
+    }
+
+    /// Renamed to [`Evdev::write_events`].
+    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
+    pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
+        self.write_events(events)
     }
 
     /// Sets the [`clockid_t`] to be used for event timestamps.

@@ -27,12 +27,12 @@ fn main() -> io::Result<()> {
     let dev2 = dev.try_clone()?;
     thread::spawn(move || {
         loop {
-            dev2.write(&[KeyEvent::new(KEY, KeyState::PRESSED).into()])
+            dev2.write_events(&[KeyEvent::new(KEY, KeyState::PRESSED).into()])
                 .unwrap();
             println!("Key pressed");
             thread::sleep(Duration::from_millis(500));
 
-            dev2.write(&[KeyEvent::new(KEY, KeyState::RELEASED).into()])
+            dev2.write_events(&[KeyEvent::new(KEY, KeyState::RELEASED).into()])
                 .unwrap();
             println!("Key released");
             thread::sleep(Duration::from_millis(500));

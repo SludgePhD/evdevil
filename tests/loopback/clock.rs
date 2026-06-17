@@ -8,7 +8,8 @@ use crate::Tester;
 fn set_clockid() -> io::Result<()> {
     let t = Tester::get();
 
-    t.uinput.write(&[RelEvent::new(Rel::DIAL, 78).into()])?;
+    t.uinput
+        .write_events(&[RelEvent::new(Rel::DIAL, 78).into()])?;
     let ev = t.evdev().raw_events().next().unwrap()?;
     match ev.kind() {
         EventKind::Rel(ev) if ev.rel() == Rel::DIAL && ev.value() == 78 => {}
@@ -24,7 +25,8 @@ fn set_clockid() -> io::Result<()> {
 
     t.evdev().set_clockid(libc::CLOCK_MONOTONIC)?;
 
-    t.uinput.write(&[RelEvent::new(Rel::DIAL, 78).into()])?;
+    t.uinput
+        .write_events(&[RelEvent::new(Rel::DIAL, 78).into()])?;
     let ev = t.evdev().raw_events().next().unwrap()?;
     match ev.kind() {
         EventKind::Rel(rel) if rel.rel() == Rel::DIAL && rel.value() == 78 => {}

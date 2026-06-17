@@ -66,7 +66,7 @@ mod tests {
                 }
                 Ok(())
             },
-            || evdev.write(&[LedEvent::new(Led::CAPSL, true).into()]),
+            || evdev.write_events(&[LedEvent::new(Led::CAPSL, true).into()]),
         )
         .run()?;
 

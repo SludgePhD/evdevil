@@ -140,7 +140,9 @@ impl<'a> FFTest<'a> {
         // There's a weird bug or Feature™ where the kernel will appear to insert additional FF events
         // that start or stop the effect when events are submitted by subsequent tests.
         // To get around that we submit a `RelEvent` and then drain the evdev, ignoring all events.
-        self.t.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+        self.t
+            .uinput
+            .write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
         assert!(self.t.evdev().is_readable()?);
         while self.t.evdev().is_readable()? {
             self.t.evdev().raw_events().next().unwrap()?;

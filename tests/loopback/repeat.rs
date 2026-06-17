@@ -62,7 +62,7 @@ fn get_set_repeat() -> io::Result<()> {
     // Similar to the bug around force-feedback events, the kernel will insert additional copies of
     // the `REP_*` events when subsequent tests use `uinput.write`.
     // So we write a `Rel` event and drain the evdev buffer to avoid that.
-    t.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+    t.uinput.write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
     assert!(t.evdev().is_readable()?);
     while t.evdev().is_readable()? {
         t.evdev().raw_events().next().unwrap()?;

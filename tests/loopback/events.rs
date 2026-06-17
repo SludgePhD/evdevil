@@ -29,7 +29,7 @@ fn roundtrip_raw2(
     uinput: &mut UinputDevice,
     events: &[InputEvent],
 ) -> io::Result<()> {
-    uinput.write(events)?;
+    uinput.write_events(events)?;
 
     for expected in events {
         let recv = evdev.raw_events().next().unwrap()?;
@@ -63,7 +63,7 @@ fn roundtrip_echo(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
 
 #[track_caller]
 fn evdev2uinput(t: &mut Tester, events: &[InputEvent]) -> io::Result<()> {
-    t.evdev_mut().write(events)?;
+    t.evdev_mut().write_events(events)?;
 
     if !events.is_empty() {
         assert!(t.uinput.is_readable()?);
@@ -113,7 +113,7 @@ fn test_evdev_is_readable() -> io::Result<()> {
     assert!(!tester.evdev().is_readable()?);
 
     let event = RelEvent::new(Rel::DIAL, -42).into();
-    tester.uinput.write(&[event])?;
+    tester.uinput.write_events(&[event])?;
 
     tester.evdev().block_until_readable()?;
     assert!(tester.evdev().is_readable()?);
@@ -182,7 +182,9 @@ fn test_led() -> io::Result<()> {
 
     // For some reason, the kernel will insert "LED on" and "LED off" events before the next event
     // the uinput device emits, so drain them here.
-    tester.uinput.write(&[RelEvent::new(Rel::DIAL, 7).into()])?;
+    tester
+        .uinput
+        .write_events(&[RelEvent::new(Rel::DIAL, 7).into()])?;
     let mut ev = Vec::new();
     while tester.evdev().is_readable()? {
         ev.push(tester.evdev().raw_events().next().unwrap()?);
@@ -194,7 +196,7 @@ fn test_led() -> io::Result<()> {
     // Note that the `uinput` event buffer does not make use of the `SYN_*` mechanism.
     tester
         .uinput
-        .write(&[LedEvent::new(Led::CAPSL, true).into()])?;
+        .write_events(&[LedEvent::new(Led::CAPSL, true).into()])?;
 
     roundtrip_echo(&mut tester, &[LedEvent::new(Led::CAPSL, true).into()])?;
     assert_eq!(tester.evdev().led_state()?, BitSet::from_iter([Led::CAPSL]));
@@ -271,7 +273,7 @@ fn test_overflow() -> io::Result<()> {
     // Use REL events, since they don't get processed, deduplicated, or ignored by the kernel.
     // Kernel buffer appears to be around 128 events large.
     let events = vec![RelEvent::new(Rel::DIAL, 1).into(); OVERFLOW_COUNT];
-    tester.uinput.write(&events)?;
+    tester.uinput.write_events(&events)?;
 
     assert!(tester.evdev().is_readable()?);
 
@@ -332,7 +334,8 @@ fn test_overflow_resync() -> io::Result<()> {
         reader.update()?;
 
         // Release the key without overflowing.
-        uinput.write(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED).into()])?;
+        uinput
+            .write_events(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED).into()])?;
         // Update via next
         reader.evdev().set_nonblocking(true)?;
         let events = reader.events().collect::<io::Result<Vec<_>>>()?;
@@ -348,7 +351,7 @@ fn test_overflow_resync() -> io::Result<()> {
         assert_eq!(reader.key_state(), &BitSet::new());
 
         // Press the key without overflowing.
-        uinput.write(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::PRESSED).into()])?;
+        uinput.write_events(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::PRESSED).into()])?;
         // Update via `update`
         reader.update()?;
         assert_eq!(
@@ -362,12 +365,13 @@ fn test_overflow_resync() -> io::Result<()> {
 
         // Overflow the buffer, release the key, then overflow it again.
         let events = vec![RelEvent::new(Rel::DIAL, 1).into(); OVERFLOW_COUNT];
-        uinput.write(&events)?;
+        uinput.write_events(&events)?;
 
-        uinput.write(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED).into()])?;
+        uinput
+            .write_events(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED).into()])?;
 
         let events = vec![RelEvent::new(Rel::DIAL, 1).into(); OVERFLOW_COUNT];
-        uinput.write(&events)?;
+        uinput.write_events(&events)?;
 
         // Kernel key state should now be released:
         assert_eq!(reader.evdev().key_state()?, BitSet::new());
@@ -434,13 +438,13 @@ fn test_event_mask_state() -> io::Result<()> {
 
     tester
         .uinput
-        .write(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::PRESSED).into()])?;
+        .write_events(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::PRESSED).into()])?;
     let keys = tester.evdev().key_state()?;
     assert_eq!(keys, BitSet::from_iter([Key::BTN_TRIGGER_HAPPY1]));
 
     tester
         .uinput
-        .write(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED).into()])?;
+        .write_events(&[KeyEvent::new(Key::BTN_TRIGGER_HAPPY1, KeyState::RELEASED).into()])?;
 
     tester.evdev_mut().set_event_mask(&event_mask)?;
     Ok(())
@@ -471,7 +475,9 @@ fn test_event_mask() -> io::Result<()> {
     assert!(!tester.evdev().is_readable()?);
 
     // `REL_DIAL` events shouldn't arrive.
-    tester.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+    tester
+        .uinput
+        .write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
     assert!(!tester.evdev().is_readable()?);
 
     tester.evdev_mut().set_event_mask(&event_mask)?;
@@ -501,7 +507,9 @@ fn test_rel_mask() -> io::Result<()> {
     assert!(!tester.evdev().is_readable()?);
 
     // `REL_DIAL` events shouldn't arrive.
-    tester.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+    tester
+        .uinput
+        .write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
     assert!(!tester.evdev().is_readable()?);
 
     tester.evdev_mut().set_rel_mask(&rel_mask)?;
@@ -514,7 +522,7 @@ fn reader_reports_clear() -> io::Result<()> {
 
     tester.evdev().set_nonblocking(true)?;
     tester.with_reader(|uinput, reader| {
-        uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+        uinput.write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
         let report = reader.reports().next().unwrap()?;
         let events = report.iter().collect::<Vec<InputEvent>>();
         assert_eq!(report.len(), events.len());
@@ -544,8 +552,8 @@ fn reader_reports_collect() -> io::Result<()> {
 
     tester.evdev().set_nonblocking(true)?;
     tester.with_reader(|uinput, reader| {
-        uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
-        uinput.write(&[RelEvent::new(Rel::DIAL, 2).into()])?;
+        uinput.write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+        uinput.write_events(&[RelEvent::new(Rel::DIAL, 2).into()])?;
         let reports = reader.reports().collect::<io::Result<Vec<_>>>()?;
         assert_eq!(reports.len(), 2);
         check_events(
@@ -575,7 +583,7 @@ fn reader_events_stateless() -> io::Result<()> {
         let next = events.next();
         assert!(next.is_none(), "{next:?}");
 
-        uinput.write(&[
+        uinput.write_events(&[
             RelEvent::new(Rel::DIAL, 1).into(),
             RelEvent::new(Rel::DIAL, 2).into(),
         ])?;

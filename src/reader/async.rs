@@ -92,7 +92,7 @@ mod tests {
 
         {
             let event = AsyncTest::new(async { reader.async_events()?.next_event().await }, || {
-                uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])
+                uinput.write_events(&[RelEvent::new(Rel::DIAL, 1).into()])
             })
             .run()?;
 
@@ -104,7 +104,7 @@ mod tests {
 
         let report = AsyncTest::new(
             async { reader.async_reports()?.next_report().await },
-            || uinput.write(&[RelEvent::new(Rel::DIAL, 2).into()]),
+            || uinput.write_events(&[RelEvent::new(Rel::DIAL, 2).into()]),
         )
         .run()?;
 

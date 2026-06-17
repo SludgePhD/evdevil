@@ -875,9 +875,15 @@ impl UinputDevice {
     /// enabled during construction), since there is no state associated with them.
     ///
     /// [`RelEvent`]: crate::event::RelEvent
-    pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
-        self.writer().write(events)?.finish()?;
+    pub fn write_events(&self, events: &[InputEvent]) -> io::Result<()> {
+        self.writer().write_events(events)?.finish()?;
         Ok(())
+    }
+
+    /// Renamed to [`UinputDevice::write_events`].
+    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
+    pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
+        self.write_events(events)
     }
 
     /// Returns an [`EventWriter`] for writing events to the device.
@@ -909,21 +915,27 @@ impl<'a> EventWriter<'a> {
     /// Writes raw events to the device.
     ///
     /// Events passed to this method may be buffered to improve performance.
-    pub fn write(mut self, events: &[InputEvent]) -> io::Result<Self> {
+    pub fn write_events(mut self, events: &[InputEvent]) -> io::Result<Self> {
         self.batch.write(events, self.file)?;
         Ok(self)
+    }
+
+    /// Renamed to [`EventWriter::write_events`].
+    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
+    pub fn write(self, events: &[InputEvent]) -> io::Result<Self> {
+        self.write_events(events)
     }
 
     /// Prepares for modification of a multi-touch slot.
     ///
     /// This will publish an `ABS_MT_SLOT` event with the selected slot.
     ///
-    /// Returns an [`SlotWriter`] that can be used to modify `slot`.
+    /// Returns a [`SlotWriter`] that can be used to modify `slot`.
     pub fn slot(mut self, slot: impl TryInto<Slot>) -> io::Result<SlotWriter<'a>> {
         let slot: Slot = slot
             .try_into()
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid slot"))?;
-        self = self.write(&[AbsEvent::new(Abs::MT_SLOT, slot.raw() as i32).into()])?;
+        self = self.write_events(&[AbsEvent::new(Abs::MT_SLOT, slot.raw()).into()])?;
         Ok(SlotWriter(self))
     }
 
@@ -937,7 +949,7 @@ impl<'a> EventWriter<'a> {
     /// Both events will be sent to every connected `evdev` client, and on Linux, they will also
     /// be echoed back to the [`UinputDevice`].
     pub fn set_key_repeat(self, rep: KeyRepeat) -> io::Result<Self> {
-        self.write(&[
+        self.write_events(&[
             RepeatEvent::new(Repeat::PERIOD, rep.period()).into(),
             RepeatEvent::new(Repeat::DELAY, rep.delay()).into(),
         ])
@@ -986,7 +998,7 @@ impl<'a> SlotWriter<'a> {
     ///
     /// This will emit [`Abs::MT_POSITION_X`] and [`Abs::MT_POSITION_Y`] events.
     pub fn set_position(mut self, x: i32, y: i32) -> io::Result<Self> {
-        self.0 = self.0.write(&[
+        self.0 = self.0.write_events(&[
             AbsEvent::new(Abs::MT_POSITION_X, x).into(),
             AbsEvent::new(Abs::MT_POSITION_Y, y).into(),
         ])?;
@@ -997,16 +1009,22 @@ impl<'a> SlotWriter<'a> {
     pub fn set_tracking_id(mut self, id: i32) -> io::Result<Self> {
         self.0 = self
             .0
-            .write(&[AbsEvent::new(Abs::MT_TRACKING_ID, id).into()])?;
+            .write_events(&[AbsEvent::new(Abs::MT_TRACKING_ID, id).into()])?;
         Ok(self)
     }
 
     /// Write raw events to the device.
     ///
     /// Any `ABS_MT_*` events will be associated with this MT slot.
-    pub fn write(mut self, events: &[InputEvent]) -> io::Result<Self> {
-        self.0 = self.0.write(events)?;
+    pub fn write_events(mut self, events: &[InputEvent]) -> io::Result<Self> {
+        self.0 = self.0.write_events(events)?;
         Ok(self)
+    }
+
+    /// Renamed to [`SlotWriter::write_events`].
+    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
+    pub fn write(self, events: &[InputEvent]) -> io::Result<Self> {
+        self.write_events(events)
     }
 
     /// Finishes updating this multitouch slot and returns the original [`EventWriter`].

@@ -16,7 +16,7 @@ fn revoke() -> io::Result<()> {
 
     // After revocation, dev2 shouldn't receive any events anymore
     dev2.revoke()?;
-    t.uinput.write(&[RelEvent::new(Rel::DIAL, 1).into()])?;
+    t.uinput.write_events(&[RelEvent::new(Rel::DIAL, 1).into()])?;
 
     assert!(dev.is_readable()?);
     assert!(!dev2.is_readable()?);
