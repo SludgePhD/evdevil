@@ -40,7 +40,7 @@ pub use abs_info::AbsInfo;
 #[doc(inline)]
 pub use enumerate::{enumerate, enumerate_hotplug};
 pub use evdev::*;
-pub use event::codes::{InputProp, UnknownVariant};
+pub use event::codes::{InputProp, ParseVariantError};
 pub use input_id::{Bus, InputId};
 pub use key_repeat::KeyRepeat;
 pub use keymap_entry::{KeymapEntry, Scancode};

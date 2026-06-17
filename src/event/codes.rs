@@ -142,16 +142,16 @@ impl fmt::Debug for Syn {
 ///
 /// Indicates that the supplied string does not refer to a known constant.
 #[derive(Debug, PartialEq, Eq)]
-pub struct UnknownVariant {
+pub struct ParseVariantError {
     _p: (),
 }
 
-impl fmt::Display for UnknownVariant {
+impl fmt::Display for ParseVariantError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("unknown variant name")
     }
 }
-impl Error for UnknownVariant {}
+impl Error for ParseVariantError {}
 
 ffi_enum! {
     /// An *evdev* key or button identifier.
@@ -880,10 +880,10 @@ impl Key {
 }
 
 impl FromStr for Key {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_variant_name(s).ok_or(UnknownVariant { _p: () })
+        Self::from_variant_name(s).ok_or(ParseVariantError { _p: () })
     }
 }
 
@@ -928,12 +928,12 @@ impl Rel {
 }
 
 impl FromStr for Rel {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.strip_prefix("REL_") {
-            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
-            None => Err(UnknownVariant { _p: () }),
+            Some(v) => Self::from_variant_name(v).ok_or(ParseVariantError { _p: () }),
+            None => Err(ParseVariantError { _p: () }),
         }
     }
 }
@@ -1015,12 +1015,12 @@ impl Abs {
 }
 
 impl FromStr for Abs {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.strip_prefix("ABS_") {
-            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
-            None => Err(UnknownVariant { _p: () }),
+            Some(v) => Self::from_variant_name(v).ok_or(ParseVariantError { _p: () }),
+            None => Err(ParseVariantError { _p: () }),
         }
     }
 }
@@ -1075,12 +1075,12 @@ impl Switch {
 }
 
 impl FromStr for Switch {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.strip_prefix("SW_") {
-            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
-            None => Err(UnknownVariant { _p: () }),
+            Some(v) => Self::from_variant_name(v).ok_or(ParseVariantError { _p: () }),
+            None => Err(ParseVariantError { _p: () }),
         }
     }
 }
@@ -1139,12 +1139,12 @@ impl Misc {
 }
 
 impl FromStr for Misc {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.strip_prefix("MSC_") {
-            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
-            None => Err(UnknownVariant { _p: () }),
+            Some(v) => Self::from_variant_name(v).ok_or(ParseVariantError { _p: () }),
+            None => Err(ParseVariantError { _p: () }),
         }
     }
 }
@@ -1218,12 +1218,12 @@ impl Led {
 }
 
 impl FromStr for Led {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.strip_prefix("LED_") {
-            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
-            None => Err(UnknownVariant { _p: () }),
+            Some(v) => Self::from_variant_name(v).ok_or(ParseVariantError { _p: () }),
+            None => Err(ParseVariantError { _p: () }),
         }
     }
 }
@@ -1273,12 +1273,12 @@ impl Sound {
 bitvalue!(Sound);
 
 impl FromStr for Sound {
-    type Err = UnknownVariant;
+    type Err = ParseVariantError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.strip_prefix("SND_") {
-            Some(v) => Self::from_variant_name(v).ok_or(UnknownVariant { _p: () }),
-            None => Err(UnknownVariant { _p: () }),
+            Some(v) => Self::from_variant_name(v).ok_or(ParseVariantError { _p: () }),
+            None => Err(ParseVariantError { _p: () }),
         }
     }
 }
