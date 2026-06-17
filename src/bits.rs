@@ -41,9 +41,8 @@ pub type Word = c_ulong;
 /// This is a sealed trait with no interface. It is implemented for types in this library that
 /// `evdev` reports to userspace using bitfields.
 pub trait BitValue: Copy + sealed::BitValueImpl {
-    /// The largest value that can be stored in a [`BitSet`].
-    ///
-    /// Attempting to insert a value above this into a [`BitSet`] will panic.
+    /// The largest value that can be stored in a [`BitSet`], after rounding to the next
+    /// `unsigned long`.
     ///
     /// Note that the exact value used for this associated constant should not be relied on as it
     /// is not stable.
@@ -85,7 +84,9 @@ impl<V: BitValue> BitSet<V> {
     ///
     /// The number of [`Word`]s that make up any given [`BitSet`] can also vary between platforms,
     /// and is generally only guaranteed to be large enough to store
-    /// [`<V as BitValue>::MAX`][BitValue::MAX], but may be arbitrarily larger.
+    /// [`<V as BitValue>::MAX`][BitValue::MAX], but will be rounded up to the next multiple of
+    /// `sizeof(unsigned long)`.
+    ///
     /// Additionally, the number of [`Word`]s may increase in minor and patch releases to make room
     /// for newly added enumeration constants.
     pub fn words(&self) -> &[Word] {
@@ -93,10 +94,6 @@ impl<V: BitValue> BitSet<V> {
     }
 
     /// Returns a mutable reference to the underlying [`Word`]s making up this [`BitSet`].
-    ///
-    /// You should not set any bits to 1 whose indices are larger than
-    /// [`<V as BitValue>::MAX`][BitValue::MAX]. Doing so might cause the [`BitSet`] to behave
-    /// incorrectly.
     ///
     /// Further, all the same considerations from [`BitSet::words`] apply here as well.
     pub fn words_mut(&mut self) -> &mut [Word] {
@@ -119,16 +116,17 @@ impl<V: BitValue> BitSet<V> {
 
     /// Returns whether `self` contains `value`.
     pub fn contains(&self, value: V) -> bool {
-        if value.into_index() > V::MAX.into_index() {
-            return false;
-        }
         let index = value.into_index();
         let wordpos = index / Word::BITS as usize;
         let bitpos = index % Word::BITS as usize;
 
-        let word = self.words.as_ref()[wordpos];
-        let bit = word & (1 << bitpos) != 0;
-        bit
+        match self.words.as_ref().get(wordpos) {
+            Some(&word) => {
+                let bit = word & (1 << bitpos) != 0;
+                bit
+            }
+            None => false,
+        }
     }
 
     /// Inserts `value` into `self`, setting the appropriate bit.
@@ -137,38 +135,42 @@ impl<V: BitValue> BitSet<V> {
     ///
     /// # Panics
     ///
-    /// Panics if `value` is larger than [`<V as BitValue>::MAX`][BitValue::MAX].
+    /// Panics if `value` is out of range and there is no bit allocated to store it.
+    /// The total number of bits available is [`<V as BitValue>::MAX`][BitValue::MAX], rounded up to
+    /// the nearest multiple of `sizeof(unsigned long)`.
     pub fn insert(&mut self, value: V) -> bool {
-        assert!(
-            value.into_index() <= V::MAX.into_index(),
-            "value out of range for `BitSet` storage (value's index is {}, max is {})",
-            value.into_index(),
-            V::MAX.into_index(),
-        );
-
-        let present = self.contains(value);
-
         let index = value.into_index();
         let wordpos = index / Word::BITS as usize;
         let bitpos = index % Word::BITS as usize;
-        self.words.as_mut()[wordpos] |= 1 << bitpos;
-        present
+        match self.words.as_mut().get_mut(wordpos) {
+            Some(word) => {
+                let old = *word;
+                *word |= 1 << bitpos;
+                *word != old
+            }
+            None => panic!(
+                "value out of range for `BitSet`: value's index is {index}, capacity is {}",
+                size_of::<Word>() * self.words().len(),
+            ),
+        }
     }
 
     /// Removes `value` from the set.
     ///
     /// Returns `true` if it was present and has been removed, or `false` if it was not present.
     pub fn remove(&mut self, value: V) -> bool {
-        if value.into_index() > V::MAX.into_index() {
-            return false;
-        }
         let present = self.contains(value);
 
         let index = value.into_index();
         let wordpos = index / Word::BITS as usize;
         let bitpos = index % Word::BITS as usize;
-        self.words.as_mut()[wordpos] &= !(1 << bitpos);
-        present
+        match self.words.as_mut().get_mut(wordpos) {
+            Some(word) => {
+                *word &= !(1 << bitpos);
+                present
+            }
+            None => false,
+        }
     }
 
     /// Returns an iterator over all values in `self`.
@@ -338,7 +340,7 @@ mod tests {
     #[test]
     fn bit0() {
         let mut set = BitSet::new();
-        set.insert(InputProp(0));
+        assert!(set.insert(InputProp(0)));
 
         assert!(set.contains(InputProp::POINTER));
         assert!(!set.contains(InputProp::DIRECT));
@@ -352,20 +354,34 @@ mod tests {
     #[test]
     fn max() {
         let mut set = BitSet::new();
-        set.insert(InputProp::MAX);
+        assert!(set.insert(InputProp::MAX));
 
         assert!(!set.contains(InputProp::POINTER));
         assert!(!set.contains(InputProp::DIRECT));
         assert!(set.contains(InputProp::MAX));
         assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
         assert!(!set.remove(InputProp(InputProp::MAX.0 + 1)));
+
+        assert!(set.insert(InputProp(InputProp::MAX.0 + 1)));
+
+        assert_eq!(
+            set.iter().collect::<Vec<_>>(),
+            &[InputProp::MAX, InputProp(InputProp::MAX.0 + 1)],
+        );
+
+        assert!(!set.contains(InputProp::DIRECT));
+        assert!(set.contains(InputProp::MAX));
+        assert!(set.contains(InputProp(InputProp::MAX.0 + 1)));
+        assert!(set.remove(InputProp(InputProp::MAX.0 + 1)));
+        assert!(set.contains(InputProp::MAX));
+        assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
     }
 
     #[test]
     #[should_panic = "value out of range for `BitSet`"]
-    fn above_max() {
+    fn out_of_range() {
         let mut set = BitSet::new();
-        set.insert(Abs::from_raw(Abs::MAX.raw() + 1));
+        set.insert(InputProp(200));
     }
 
     #[test]
