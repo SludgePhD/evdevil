@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.6
+
+### Fixes
+
+- Fix the return value of `BitSet::insert` to match the documentation.
+- Make validation of values to be inserted into a `BitSet` less strict, to permit the same set of
+  `BitSet`s that the kernel will produce.
+
 ## v0.4.5
 
 ### Deprecations
