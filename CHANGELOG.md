@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.4.5
+
+### Deprecations
+
+- The `Evdev::write` method was deprecated in favor of a new `Evdev::write_events` method, to align the naming with `read_events`.
+  - Similar deprecations have been performed for other types.
+
+### Other Changes
+
+- No longer map `ENODEV` to `ErrorKind::NotFound` when opening an `Evdev` (instead of `ErrorKind::Uncategorized`).
+  - This reverts a change was previously introduced in v0.4.3.
+  - Users of `Evdev::open` already had to handle `ENODEV` regardless of this mapping,
+    so nothing changes for correct applications.
+    Both types of errors were possible before, and remain possible after the change.
+
 ## v0.4.4
 
 ### Improvements

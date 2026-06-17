@@ -228,7 +228,7 @@ dependencies = [
 
 [[package]]
 name = "evdevil"
-version = "0.4.4"
+version = "0.4.5"
 dependencies = [
  "async-io",
  "csv",
