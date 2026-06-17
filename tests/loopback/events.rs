@@ -434,7 +434,7 @@ fn test_event_mask_state() -> io::Result<()> {
 
     let event_mask = tester.evdev().event_mask()?;
 
-    tester.evdev_mut().set_event_mask(&BitSet::new())?;
+    tester.evdev_mut().set_event_mask([])?;
 
     tester
         .uinput
@@ -460,9 +460,7 @@ fn test_event_mask() -> io::Result<()> {
 
     let event_mask = tester.evdev().event_mask()?;
 
-    tester
-        .evdev_mut()
-        .set_event_mask(&BitSet::from_iter([EventType::REL]))?;
+    tester.evdev_mut().set_event_mask([EventType::REL])?;
     assert_eq!(
         tester.evdev().event_mask()?,
         BitSet::from_iter([EventType::REL]),
@@ -470,7 +468,7 @@ fn test_event_mask() -> io::Result<()> {
 
     roundtrip_raw(&mut tester, &[RelEvent::new(Rel::DIAL, 1).into()])?;
 
-    tester.evdev_mut().set_event_mask(&BitSet::new())?;
+    tester.evdev_mut().set_event_mask([])?;
     assert_eq!(tester.evdev().event_mask()?, BitSet::new());
     assert!(!tester.evdev().is_readable()?);
 
@@ -495,14 +493,12 @@ fn test_rel_mask() -> io::Result<()> {
     let rel_mask = tester.evdev().rel_mask()?;
     assert!((0..=Rel::MAX.raw()).all(|rel| rel_mask.contains(Rel::from_raw(rel))));
 
-    tester
-        .evdev_mut()
-        .set_rel_mask(&BitSet::from_iter([Rel::DIAL]))?;
+    tester.evdev_mut().set_rel_mask([Rel::DIAL])?;
     assert_eq!(tester.evdev().rel_mask()?, BitSet::from_iter([Rel::DIAL]),);
 
     roundtrip_raw(&mut tester, &[RelEvent::new(Rel::DIAL, 1).into()])?;
 
-    tester.evdev_mut().set_rel_mask(&BitSet::new())?;
+    tester.evdev_mut().set_rel_mask([])?;
     assert_eq!(tester.evdev().rel_mask()?, BitSet::new());
     assert!(!tester.evdev().is_readable()?);
 

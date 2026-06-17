@@ -1007,7 +1007,12 @@ impl Evdev {
         Ok(set)
     }
 
-    fn set_mask<V: BitValue>(&self, ty: EventType, mask: &BitSet<V>) -> io::Result<()> {
+    fn set_mask<V: BitValue>(
+        &self,
+        ty: EventType,
+        mask: impl IntoIterator<Item = V>,
+    ) -> io::Result<()> {
+        let mask = BitSet::from_iter(mask);
         let words = mask.words();
         unsafe {
             let mask = input_mask {
@@ -1033,7 +1038,7 @@ impl Evdev {
     /// **Note**: [`EventType::SYN`] cannot be the only enabled event type. At least one "real"
     /// (non-SYN) event has to be enabled, or **no** events will be forwarded to the program.
     #[doc(alias = "EVIOCSMASK")]
-    pub fn set_event_mask(&self, mask: &BitSet<EventType>) -> io::Result<()> {
+    pub fn set_event_mask(&self, mask: impl IntoIterator<Item = EventType>) -> io::Result<()> {
         self.set_mask(EventType::from_raw(0), mask)
     }
 
@@ -1047,7 +1052,7 @@ impl Evdev {
     /// This [`Evdev`] handle will only receive [`KeyEvent`]s whose [`Key`] is contained in `mask`.
     ///
     /// [`KeyEvent`]: crate::event::KeyEvent
-    pub fn set_key_mask(&self, mask: &BitSet<Key>) -> io::Result<()> {
+    pub fn set_key_mask(&self, mask: impl IntoIterator<Item = Key>) -> io::Result<()> {
         self.set_mask(EventType::KEY, mask)
     }
 
@@ -1057,7 +1062,7 @@ impl Evdev {
     }
 
     /// Sets the relative axis event mask.
-    pub fn set_rel_mask(&self, mask: &BitSet<Rel>) -> io::Result<()> {
+    pub fn set_rel_mask(&self, mask: impl IntoIterator<Item = Rel>) -> io::Result<()> {
         self.set_mask(EventType::REL, mask)
     }
 
@@ -1067,7 +1072,7 @@ impl Evdev {
     }
 
     /// Sets the absolute axis event mask.
-    pub fn set_abs_mask(&self, mask: &BitSet<Abs>) -> io::Result<()> {
+    pub fn set_abs_mask(&self, mask: impl IntoIterator<Item = Abs>) -> io::Result<()> {
         self.set_mask(EventType::ABS, mask)
     }
 
@@ -1077,7 +1082,7 @@ impl Evdev {
     }
 
     /// Sets the switch event mask.
-    pub fn set_switch_mask(&self, mask: &BitSet<Switch>) -> io::Result<()> {
+    pub fn set_switch_mask(&self, mask: impl IntoIterator<Item = Switch>) -> io::Result<()> {
         self.set_mask(EventType::SW, mask)
     }
 }
