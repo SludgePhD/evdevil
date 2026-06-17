@@ -159,15 +159,14 @@ impl<V: BitValue> BitSet<V> {
     ///
     /// Returns `true` if it was present and has been removed, or `false` if it was not present.
     pub fn remove(&mut self, value: V) -> bool {
-        let present = self.contains(value);
-
         let index = value.into_index();
         let wordpos = index / Word::BITS as usize;
         let bitpos = index % Word::BITS as usize;
         match self.words.as_mut().get_mut(wordpos) {
             Some(word) => {
+                let old = *word;
                 *word &= !(1 << bitpos);
-                present
+                *word != old
             }
             None => false,
         }
