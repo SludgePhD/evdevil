@@ -150,7 +150,7 @@ impl<V: BitValue> BitSet<V> {
             }
             None => panic!(
                 "value out of range for `BitSet`: value's index is {index}, capacity is {}",
-                size_of::<Word>() * self.words().len(),
+                size_of::<Word>() * self.words().len() * 8,
             ),
         }
     }
@@ -327,6 +327,28 @@ mod tests {
 
     use super::*;
 
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    struct TestValue(u8);
+
+    impl BitValueImpl for TestValue {
+        type __PrivateArray = [c_ulong; 1];
+
+        const __PRIVATE_ZERO: Self::__PrivateArray = [0; 1];
+
+        fn from_index(index: usize) -> Self {
+            Self(index as u8)
+        }
+
+        fn into_index(self) -> usize {
+            self.0.into()
+        }
+    }
+    impl BitValue for TestValue {
+        // `unsigned long` is at least 32 bits in size, so a MAX value of 30 guarantees one spare
+        // bit.
+        const MAX: Self = Self(30);
+    }
+
     #[test]
     fn sizes() {
         // `BitSet`s are only as big as needed.
@@ -340,48 +362,48 @@ mod tests {
     #[test]
     fn bit0() {
         let mut set = BitSet::new();
-        assert!(set.insert(InputProp(0)));
+        assert!(set.insert(TestValue(0)));
 
-        assert!(set.contains(InputProp::POINTER));
-        assert!(!set.contains(InputProp::DIRECT));
-        assert!(!set.contains(InputProp::MAX));
-        assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
-        assert!(!set.contains(InputProp(u8::MAX)));
+        assert!(set.contains(TestValue(0)));
+        assert!(!set.contains(TestValue(1)));
+        assert!(!set.contains(TestValue::MAX));
+        assert!(!set.contains(TestValue(TestValue::MAX.0 + 1)));
+        assert!(!set.contains(TestValue(u8::MAX)));
 
-        assert_eq!(set.iter().collect::<Vec<_>>(), &[InputProp::POINTER]);
+        assert_eq!(set.iter().collect::<Vec<_>>(), &[TestValue(0)]);
     }
 
     #[test]
     fn max() {
         let mut set = BitSet::new();
-        assert!(set.insert(InputProp::MAX));
+        assert!(set.insert(TestValue::MAX));
 
-        assert!(!set.contains(InputProp::POINTER));
-        assert!(!set.contains(InputProp::DIRECT));
-        assert!(set.contains(InputProp::MAX));
-        assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
-        assert!(!set.remove(InputProp(InputProp::MAX.0 + 1)));
+        assert!(!set.contains(TestValue(0)));
+        assert!(!set.contains(TestValue(1)));
+        assert!(set.contains(TestValue::MAX));
+        assert!(!set.contains(TestValue(TestValue::MAX.0 + 1)));
+        assert!(!set.remove(TestValue(TestValue::MAX.0 + 1)));
 
-        assert!(set.insert(InputProp(InputProp::MAX.0 + 1)));
+        assert!(set.insert(TestValue(TestValue::MAX.0 + 1)));
 
         assert_eq!(
             set.iter().collect::<Vec<_>>(),
-            &[InputProp::MAX, InputProp(InputProp::MAX.0 + 1)],
+            &[TestValue::MAX, TestValue(TestValue::MAX.0 + 1)],
         );
 
-        assert!(!set.contains(InputProp::DIRECT));
-        assert!(set.contains(InputProp::MAX));
-        assert!(set.contains(InputProp(InputProp::MAX.0 + 1)));
-        assert!(set.remove(InputProp(InputProp::MAX.0 + 1)));
-        assert!(set.contains(InputProp::MAX));
-        assert!(!set.contains(InputProp(InputProp::MAX.0 + 1)));
+        assert!(!set.contains(TestValue(1)));
+        assert!(set.contains(TestValue::MAX));
+        assert!(set.contains(TestValue(TestValue::MAX.0 + 1)));
+        assert!(set.remove(TestValue(TestValue::MAX.0 + 1)));
+        assert!(set.contains(TestValue::MAX));
+        assert!(!set.contains(TestValue(TestValue::MAX.0 + 1)));
     }
 
     #[test]
     #[should_panic = "value out of range for `BitSet`"]
     fn out_of_range() {
         let mut set = BitSet::new();
-        set.insert(InputProp(200));
+        set.insert(TestValue(200));
     }
 
     #[test]
