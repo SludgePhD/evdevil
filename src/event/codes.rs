@@ -2,7 +2,7 @@
 //!
 //! Mostly ported from `linux/input-event-codes.h`.
 
-use std::{error::Error, fmt, io, str::FromStr};
+use std::{error::Error, fmt, str::FromStr};
 
 ffi_enum! {
     /// Input device properties.
@@ -152,11 +152,6 @@ impl fmt::Display for UnknownVariant {
     }
 }
 impl Error for UnknownVariant {}
-impl From<UnknownVariant> for io::Error {
-    fn from(value: UnknownVariant) -> Self {
-        io::Error::new(io::ErrorKind::InvalidInput, value)
-    }
-}
 
 ffi_enum! {
     /// An *evdev* key or button identifier.

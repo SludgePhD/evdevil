@@ -10,7 +10,8 @@ fn main() -> io::Result<()> {
                 unreachable!()
             };
 
-            let key = Key::from_str(key)?;
+            let key =
+                Key::from_str(key).map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             let scancode = u32::from_str_radix(scancode, 16)
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
             let scancode = Scancode::from(scancode);
