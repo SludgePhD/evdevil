@@ -398,6 +398,37 @@ impl fmt::Debug for Envelope {
     }
 }
 
+/// Direction of a force-feedback effect.
+///
+/// This is a 16-bit value encoding an angle as a fraction of 65535.
+/// A value of 0 encodes 0° (down), 0x4000 encodes 90° (left), 0x8000 encodes 180° (up), 0xC000
+/// encodes 270° (right).
+///
+/// Not all effects are directional, and not all drivers and devices implement directional effects,
+/// so this value is ignored on a lot of hardware.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct Direction(u16);
+
+impl Direction {
+    pub const DOWN: Self = Self(0x0000);
+    pub const LEFT: Self = Self(0x4000);
+    pub const UP: Self = Self(0x8000);
+    pub const RIGHT: Self = Self(0xC000);
+
+    /// Creates a new value from its raw representation.
+    #[inline]
+    pub const fn from_raw(raw: u16) -> Self {
+        Self(raw)
+    }
+
+    /// Returns the raw value wrapped by `self`.
+    #[inline]
+    pub const fn raw(self) -> u16 {
+        self.0
+    }
+}
+
 /// A force-feedback effect description.
 ///
 /// Primarily created from the more specific force-feedback types in this module using [`From`].
@@ -435,8 +466,8 @@ impl Effect<'_> {
     }
 
     #[inline]
-    pub fn with_direction(mut self, dir: u16) -> Self {
-        self.raw.direction = dir;
+    pub fn with_direction(mut self, dir: Direction) -> Self {
+        self.raw.direction = dir.raw();
         self
     }
 
@@ -463,8 +494,8 @@ impl Effect<'_> {
     }
 
     #[inline]
-    pub fn direction(&self) -> u16 {
-        self.raw.direction
+    pub fn direction(&self) -> Direction {
+        Direction(self.raw.direction)
     }
 
     #[inline]
