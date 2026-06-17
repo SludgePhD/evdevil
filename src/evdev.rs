@@ -190,19 +190,8 @@ impl Evdev {
         let file = match Self::try_open(path) {
             Ok(file) => file,
             Err(e) => {
-                // `open` can return `ENODEV` under certain circumstances, which Rust doesn't map to
-                // `ErrorKind::NotFound`, so we do that ourselves, to give users a better
-                // `ErrorKind` to match on.
-                // Note that `ENODEV` can also be returned by ioctls when the device disappears.
-                // We don't do any mapping in that case, because getting a non-specific `NotFound`
-                // from random methods is must less clearer than getting `NotFound` from the "open"
-                // function.
-                let kind = match e.raw_os_error() {
-                    Some(libc::ENODEV) => io::ErrorKind::NotFound,
-                    _ => e.kind(),
-                };
                 return Err(io::Error::new(
-                    kind,
+                    e.kind(),
                     format!("failed to open '{}': {e}", path.display()),
                 ));
             }
