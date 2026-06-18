@@ -223,7 +223,7 @@ impl InputEvent {
             EventType::SND => SoundEvent(*self).into(),
             EventType::UINPUT => UinputEvent(*self).into(),
             EventType::FF => ForceFeedbackEvent(*self).into(),
-            _ => EventKind::Other(*self),
+            _ => EventKind::__Other(*self),
         }
     }
 
@@ -255,7 +255,7 @@ impl InputEvent {
 impl fmt::Debug for InputEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind() {
-            EventKind::Other(_) => f
+            EventKind::__Other(_) => f
                 .debug_struct("InputEvent")
                 .field("time", &self.time())
                 .field("type", &self.event_type())
@@ -312,10 +312,13 @@ macro_rules! event_wrappers {
 
             /// Fallback variant for unknown events.
             ///
-            /// This cannot be matched on by user code. Future versions of `evdevil` might add new
-            /// variants to [`EventKind`] that match events previously captured as `Other`.
-            #[non_exhaustive] // prevents construction and use in patterns
-            Other(InputEvent),
+            /// This should not be matched on by user code, and is not considered part of the
+            /// public API.
+            /// Future versions of `evdevil` might add new variants to [`EventKind`] that match
+            /// events previously captured as `Other`.
+            #[doc(hidden)]
+            #[non_exhaustive]
+            __Other(InputEvent),
         }
 
         impl From<EventKind> for InputEvent {
@@ -325,7 +328,7 @@ macro_rules! event_wrappers {
                     $(
                         EventKind::$variant(it) => *it,
                     )*
-                    EventKind::Other(ev) => ev,
+                    EventKind::__Other(ev) => ev,
                 }
             }
         }
