@@ -76,7 +76,7 @@ fn event_codes() -> io::Result<()> {
         };
         defines.insert(name, value);
 
-        // FIXME: we skip `InputProp`, `EventType`, and `Syn` because they aren't parseable
+        // FIXME: we skip `InputProp`, `EventType`, `Syn` and `Bus` because they aren't parseable
         // (not sure if `FromStr` would be useful there)
         if name.starts_with("KEY_") || name.starts_with("BTN_") {
             check::<Key>(name, value);
@@ -144,7 +144,11 @@ where
 {
     match T::from_str(s) {
         Ok(t) => {
-            assert_eq!(t.raw(), expected_value);
+            let raw = t.raw();
+            assert_eq!(
+                raw, expected_value,
+                "'{s}' parses into raw value {raw}, but the header specifies {expected_value}",
+            );
         }
         Err(_) => {
             // This is not a fatal error because it most often indicates that a newly added constant
