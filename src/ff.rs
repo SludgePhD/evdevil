@@ -51,6 +51,7 @@ use std::{
 
 use crate::{
     event::Key,
+    ff::internal::UnknownEffect,
     raw::input::{
         ff_condition_effect, ff_constant_effect, ff_effect, ff_envelope, ff_periodic_effect,
         ff_ramp_effect, ff_replay, ff_rumble_effect, ff_trigger,
@@ -478,14 +479,14 @@ impl Effect<'_> {
     }
 
     #[inline]
-    pub fn effect_type(&self) -> EffectType {
-        EffectType(self.raw.type_)
-    }
-
-    #[inline]
     pub fn with_replay(mut self, replay: Replay) -> Self {
         self.raw.replay = replay.0;
         self
+    }
+
+    #[inline]
+    pub fn effect_type(&self) -> EffectType {
+        EffectType(self.raw.type_)
     }
 
     #[inline]
@@ -508,10 +509,10 @@ impl Effect<'_> {
         Replay(self.raw.replay)
     }
 
-    pub fn kind(&self) -> Option<EffectKind<'_>> {
+    pub fn kind(&self) -> EffectKind<'_> {
         // Safety relies on making it impossible to construct `Effect`s with a mismatched type.
         unsafe {
-            Some(match self.effect_type() {
+            match self.effect_type() {
                 EffectType::CONSTANT => EffectKind::Constant(Constant(self.raw.u.constant)),
                 EffectType::RAMP => EffectKind::Ramp(Ramp(self.raw.u.ramp)),
                 EffectType::PERIODIC => EffectKind::Periodic(Periodic {
@@ -535,8 +536,11 @@ impl Effect<'_> {
                     let [a, b] = self.raw.u.condition;
                     EffectKind::Inertia([Inertia(Condition(a)), Inertia(Condition(b))])
                 }
-                _ => return None,
-            })
+                ty => EffectKind::__Unknown(UnknownEffect {
+                    type_: ty,
+                    union: self.raw.u,
+                }),
+            }
         }
     }
 }
@@ -566,6 +570,14 @@ impl<'a> From<EffectKind<'a>> for Effect<'a> {
             EffectKind::Friction(friction) => Self::from(friction),
             EffectKind::Damper(dampers) => Self::from(dampers),
             EffectKind::Inertia(inertias) => Self::from(inertias),
+            EffectKind::__Unknown(unk) => {
+                // This sets the same fields all of the other variants do, allowing unknown variants
+                // to roundtrip correctly.
+                let mut effect = Effect::null();
+                effect.raw.type_ = unk.type_.raw();
+                effect.raw.u = unk.union;
+                effect
+            }
         }
     }
 }
@@ -677,7 +689,13 @@ impl From<[Inertia; 2]> for Effect<'_> {
 /// List of supported force-feedback effects.
 ///
 /// Returned by [`Effect::kind`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+///
+/// This can represent all known effect kinds, as well as an "unknown" fallback variant that cannot
+/// be matched on.
+/// Future versions of this crate might add more variants that are used in place of the fallback
+/// variant.
+/// Two [`EffectKind`]s carrying "unknown" effect data will never compare equal via [`PartialEq`].
+#[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub enum EffectKind<'a> {
     Constant(Constant),
@@ -688,6 +706,50 @@ pub enum EffectKind<'a> {
     Friction([Friction; 2]),
     Damper([Damper; 2]),
     Inertia([Inertia; 2]),
+
+    /// Fallback variant for unknown effect types. This is not part of the crate's public API and
+    /// should not be matched on by user code.
+    #[doc(hidden)]
+    #[non_exhaustive]
+    __Unknown(internal::UnknownEffect),
+}
+
+impl PartialEq for EffectKind<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Constant(l0), Self::Constant(r0)) => l0 == r0,
+            (Self::Ramp(l0), Self::Ramp(r0)) => l0 == r0,
+            (Self::Periodic(l0), Self::Periodic(r0)) => l0 == r0,
+            (Self::Rumble(l0), Self::Rumble(r0)) => l0 == r0,
+            (Self::Spring(l0), Self::Spring(r0)) => l0 == r0,
+            (Self::Friction(l0), Self::Friction(r0)) => l0 == r0,
+            (Self::Damper(l0), Self::Damper(r0)) => l0 == r0,
+            (Self::Inertia(l0), Self::Inertia(r0)) => l0 == r0,
+            // Unknown effects never compare equal, we don't know how to compare them.
+            (Self::__Unknown(_), Self::__Unknown(_)) => false,
+            _ => false,
+        }
+    }
+}
+
+mod internal {
+    use core::fmt;
+
+    use crate::{ff::EffectType, raw::input::ff_effect_union};
+
+    #[derive(Clone, Copy)]
+    pub struct UnknownEffect {
+        pub(crate) type_: EffectType,
+        pub(crate) union: ff_effect_union,
+    }
+
+    impl fmt::Debug for UnknownEffect {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_struct("UnknownEffect")
+                .field("type", &self.type_)
+                .finish_non_exhaustive()
+        }
+    }
 }
 
 /// A vibration effect.
@@ -1226,5 +1288,24 @@ mod tests {
         let b = Periodic::custom(&BUF[6..7]); // &[0]
 
         assert_eq!(a, b);
+    }
+
+    #[test]
+    fn effect_kind_unk() {
+        let mut effect = Effect::from(Rumble::new(123, 456));
+        effect.raw.type_ = 46789;
+
+        assert!(matches!(effect.kind(), EffectKind::__Unknown(_)));
+
+        let mut effect = Effect::from(effect.kind());
+        effect.raw.type_ = EffectType::RUMBLE.raw();
+
+        match effect.kind() {
+            EffectKind::Rumble(r) => {
+                assert_eq!(r.strong_magnitude(), 123);
+                assert_eq!(r.weak_magnitude(), 456);
+            }
+            k => panic!("unexpected `EffectKind`: {k:?}"),
+        }
     }
 }

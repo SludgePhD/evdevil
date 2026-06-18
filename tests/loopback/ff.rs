@@ -175,6 +175,11 @@ fn upload_play_remove() -> io::Result<()> {
     let mut t = FFTest::new(&mut t);
 
     let id = t.upload_effect(EFFECT)?;
+
+    // Modify the effect.
+    let id2 = t.upload_effect(Effect::from(EFFECT).with_id(id))?;
+    assert_eq!(id, id2);
+
     t.play_stop(id, true)?;
     t.erase_effect(id)?;
     Ok(())
