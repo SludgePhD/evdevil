@@ -8,7 +8,7 @@
 //! # Sending Events
 //!
 //! At its core, a uinput device obtains input events from some device, and then sends them to the
-//! kernel using [`UinputDevice::write`].
+//! kernel using [`UinputDevice::write_events`].
 //!
 //! Here is a simple example that presses and releases a keyboard key:
 //!
@@ -19,14 +19,14 @@
 //!     .with_keys([Key::KEY_Q])?
 //!     .build("My Input Device")?;
 //!
-//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
-//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
+//! dev.write_events(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
+//! dev.write_events(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
 //! # std::io::Result::Ok(())
 //! ```
 //!
 //! Other types of controls such as axes are implemented similarly: register the axis using
 //! [`Builder::with_rel_axes`] or [`Builder::with_abs_axes`], and send events using
-//! [`UinputDevice::write`].
+//! [`UinputDevice::write_events`].
 //!
 //! # Receiving Events
 //!
@@ -43,8 +43,8 @@
 //!     .with_leds([Led::CAPSL])?
 //!     .build("My LED Device")?;
 //!
-//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
-//! dev.write(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
+//! dev.write_events(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
+//! dev.write_events(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
 //!
 //! // In another thread:
 //! # return Ok(());  // Don't block
@@ -890,7 +890,8 @@ impl UinputDevice {
     ///
     /// Call [`EventWriter::finish`] to write a `SYN_REPORT` event and end the event batch.
     ///
-    /// The same considerations as for [`UinputDevice::write`] apply to using the [`EventWriter`].
+    /// The same considerations as for [`UinputDevice::write_events`] apply to using the
+    /// [`EventWriter`].
     pub fn writer(&self) -> EventWriter<'_> {
         EventWriter {
             file: &self.file,

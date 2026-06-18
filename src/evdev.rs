@@ -886,7 +886,7 @@ impl Evdev {
     ///
     /// To query the list of LEDs available on the device, use [`Evdev::supported_leds`].
     ///
-    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`LedEvent`]
+    /// This is a convenience wrapper around [`Evdev::write_events`] that sends a [`LedEvent`]
     /// to the device.
     pub fn set_led(&self, led: Led, on: bool) -> io::Result<()> {
         self.write_events(&[LedEvent::new(led, on).into()])
@@ -897,7 +897,7 @@ impl Evdev {
     /// Before an effect can be started with this method, it needs to be uploaded via
     /// [`Evdev::upload_ff_effect`].
     ///
-    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
+    /// This is a convenience wrapper around [`Evdev::write_events`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn control_ff(&self, effect: ff::EffectId, active: bool) -> io::Result<()> {
         self.write_events(&[ForceFeedbackEvent::control_effect(effect, active).into()])
@@ -909,7 +909,7 @@ impl Evdev {
     ///
     /// Requires that the device supports [`ff::Feature::GAIN`].
     ///
-    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
+    /// This is a convenience wrapper around [`Evdev::write_events`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn set_ff_gain(&self, gain: u16) -> io::Result<()> {
         self.write_events(&[ForceFeedbackEvent::control_gain(gain).into()])
@@ -921,7 +921,7 @@ impl Evdev {
     ///
     /// Requires that the device supports [`ff::Feature::AUTOCENTER`].
     ///
-    /// This is a convenience wrapper around [`Evdev::write`] that sends a [`ForceFeedbackEvent`]
+    /// This is a convenience wrapper around [`Evdev::write_events`] that sends a [`ForceFeedbackEvent`]
     /// to the device.
     pub fn set_ff_autocenter(&self, autocenter: u16) -> io::Result<()> {
         self.write_events(&[ForceFeedbackEvent::control_autocenter(autocenter).into()])
