@@ -880,12 +880,6 @@ impl UinputDevice {
         Ok(())
     }
 
-    /// Renamed to [`UinputDevice::write_events`].
-    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
-    pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
-        self.write_events(events)
-    }
-
     /// Returns an [`EventWriter`] for writing events to the device.
     ///
     /// Call [`EventWriter::finish`] to write a `SYN_REPORT` event and end the event batch.
@@ -919,12 +913,6 @@ impl<'a> EventWriter<'a> {
     pub fn write_events(mut self, events: &[InputEvent]) -> io::Result<Self> {
         self.batch.write(events, self.file)?;
         Ok(self)
-    }
-
-    /// Renamed to [`EventWriter::write_events`].
-    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
-    pub fn write(self, events: &[InputEvent]) -> io::Result<Self> {
-        self.write_events(events)
     }
 
     /// Prepares for modification of a multi-touch slot.
@@ -1020,12 +1008,6 @@ impl<'a> SlotWriter<'a> {
     pub fn write_events(mut self, events: &[InputEvent]) -> io::Result<Self> {
         self.0 = self.0.write_events(events)?;
         Ok(self)
-    }
-
-    /// Renamed to [`SlotWriter::write_events`].
-    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
-    pub fn write(self, events: &[InputEvent]) -> io::Result<Self> {
-        self.write_events(events)
     }
 
     /// Finishes updating this multitouch slot and returns the original [`EventWriter`].

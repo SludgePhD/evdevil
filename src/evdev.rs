@@ -947,12 +947,6 @@ impl Evdev {
         write_raw(&self.file, events)
     }
 
-    /// Renamed to [`Evdev::write_events`].
-    #[deprecated(since = "0.4.5", note = "renamed to `write_events`")]
-    pub fn write(&self, events: &[InputEvent]) -> io::Result<()> {
-        self.write_events(events)
-    }
-
     /// Sets the [`clockid_t`] to be used for event timestamps.
     ///
     /// `evdev` doesn't support *all* clocks. This method will fail with an
