@@ -108,7 +108,7 @@ impl Scancode {
     fn from_ne_slice(bytes: &[u8]) -> Self {
         assert!(bytes.len() <= 32);
         let mut a = [0; 32];
-        a[..bytes.len()].copy_from_slice(&bytes);
+        a[..bytes.len()].copy_from_slice(bytes);
         Self {
             len: bytes.len() as u8,
             bytes: a,

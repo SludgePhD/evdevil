@@ -73,10 +73,10 @@
 //! The uinput interface mirrors this approach.
 //!
 //! 1. When an evdev user requests an effect to be uploaded, a [`UinputEvent`] is enqueued for the
-//!   [`UinputDevice`]. The uinput driver reads the event and calls [`UinputDevice::ff_upload`] to
-//!   finish the upload.
+//!    [`UinputDevice`]. The uinput driver reads the event and calls [`UinputDevice::ff_upload`] to
+//!    finish the upload.
 //! 2. When userspace starts or stops the effect, the [`UinputDevice`] receives the
-//!   [`ForceFeedbackEvent`] and acts accordingly.
+//!    [`ForceFeedbackEvent`] and acts accordingly.
 //!
 //! For this to work, [`Builder::with_ff_features`] and [`Builder::with_ff_effects_max`]
 //! have to be used to advertise the force-feedback support to other programs when creating the
@@ -1051,7 +1051,7 @@ impl Iterator for Events<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut dest = InputEvent::zeroed();
-        match read_raw(&self.file, slice::from_mut(&mut dest)) {
+        match read_raw(self.file, slice::from_mut(&mut dest)) {
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => None,
             Err(e) => Some(Err(e)),
             Ok(0) => None,

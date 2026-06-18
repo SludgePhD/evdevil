@@ -636,7 +636,7 @@ impl Impl {
             // into, and then remove the ones that weren't overwritten.
             let len_before = incoming.len();
             incoming.reserve(BATCH_READ_SIZE);
-            incoming.extend(iter::repeat(PLACEHOLDER).take(BATCH_READ_SIZE));
+            incoming.extend(iter::repeat_n(PLACEHOLDER, BATCH_READ_SIZE));
 
             // If the queue wraps around, we might have two discontinuous destination buffers
             // available. We only write to the first and let the outer loop handle the rest.
@@ -1221,9 +1221,7 @@ impl Iterator for ReportIntoIter {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(i) = self.range.next() else {
-            return None;
-        };
+        let i = self.range.next()?;
         Some(self.queue[i])
     }
 
@@ -1249,9 +1247,7 @@ impl<'a> Iterator for ReportIter<'a> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(i) = self.range.next() else {
-            return None;
-        };
+        let i = self.range.next()?;
         Some(self.queue[i])
     }
 
