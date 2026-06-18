@@ -7,18 +7,19 @@
 - `EffectKind` no longer implements `Eq`.
 - `Effect::kind()` now returns `EffectKind` instead of `Option<EffectKind>`.
 - `ForceFeedbackEvent::code()` now returns `ForceFeedbackCode` instead of `Option<ForceFeedbackCode>`.
+- `EventKind::Other` has been renamed and hidden, and is no longer part of the public API.
 - `UnknownVariant` error type is now called `ParseVariantError`.
   - The `From<UnknownVariant> for io::Error` implementation has been removed.
 - `Effect::direction()` now uses a `Direction` wrapper type.
 - The `log` functionality is now hidden behind a `"log"` Cargo feature (enabled by default).
 - `Evdev::set_X_mask` now accepts an `impl IntoIterator` argument rather than a `&BitSet<V>`.
-- `EventKind::Other` has been renamed and hidden, and no longer part of the public API.
 - Previously deprecated APIs have been removed.
 
 ### Other Changes
 
 - `Condition`-based force-feedback effects (`Spring`, `Friction`, …) now have explicit constructors
   in addition to the `From` implementations.
+- Added new `Bus` and `InputProp` constants from upstream.
 
 ## v0.4.6
 
