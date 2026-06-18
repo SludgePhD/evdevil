@@ -755,22 +755,34 @@ impl UinputDevice {
         block_until_readable(self.as_raw_fd())
     }
 
-    /// Performs a requested force-feedback effect upload.
+    /// Performs a requested force-feedback effect upload or update.
     ///
     /// This should be called when receiving a [`UinputEvent`] with a code of
     /// [`UinputCode::FF_UPLOAD`].
     ///
+    /// # Error Conversion
+    ///
     /// If `handler` returns an error, that error will both be returned to the caller of `ff_upload`
     /// and also to whichever process attempted to upload the effect.
-    /// This requires a lossy conversion to a C style `Exyz` error constant.
-    /// If `handler` returns a native OS error (eg. via [`io::Error::last_os_error`]), we'll return
-    /// that error code directly.
-    /// Otherwise, we'll try to translate the [`io::ErrorKind`] of the error to something sensible.
+    /// This requires a conversion to a C style `E*` error constant.
+    ///
+    /// If `handler` returns a native OS error (eg. via [`io::Error::last_os_error`] or
+    /// [`io::Error::from_raw_os_error`]), that error code will be returned directly, without
+    /// modification.
+    ///
+    /// Otherwise, the [`io::ErrorKind`] of the error is converted to something sensible, falling
+    /// back to returning the generic `EIO` error when there is no suitable error code.
+    /// The precise mapping used for this conversion should not be relied on, and may change as
+    /// Rust adds new [`io::ErrorKind`] values.
     ///
     /// # Platform-specific behavior
     ///
     /// This functionality is stubbed out on FreeBSD. [`UinputEvent`]s are never sent to the
     /// [`UinputDevice`].
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the given [`UinputEvent`] is not a force-feedback upload event.
     #[doc(alias = "UI_BEGIN_FF_UPLOAD", alias = "UI_END_FF_UPLOAD")]
     pub fn ff_upload<R>(
         &self,
@@ -822,6 +834,10 @@ impl UinputDevice {
     ///
     /// This functionality is stubbed out on FreeBSD. [`UinputEvent`]s are never sent to the
     /// [`UinputDevice`].
+    ///
+    /// # Panics
+    ///
+    /// This method will panic if the given [`UinputEvent`] is not a force-feedback erase event.
     #[doc(alias = "UI_BEGIN_FF_ERASE", alias = "UI_END_FF_ERASE")]
     pub fn ff_erase(
         &self,
