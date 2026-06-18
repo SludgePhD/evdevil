@@ -24,7 +24,8 @@ impl InputId {
 
     /// Returns the bus type this device is attached to the system with.
     ///
-    /// This is often left as `0` for virtual devices.
+    /// This is often left as `0` for virtual devices ([`Bus::VIRTUAL`] also exists, but is a
+    /// different, non-zero value).
     #[inline]
     pub fn bus(&self) -> Bus {
         Bus(self.0.bustype)
@@ -85,6 +86,7 @@ ffi_enum! {
         HIL         = 0x04,
         BLUETOOTH   = 0x05,
         VIRTUAL     = 0x06,
+
         ISA         = 0x10,
         I8042       = 0x11,
         XTKBD       = 0x12,
@@ -102,6 +104,7 @@ ffi_enum! {
         CEC         = 0x1E,
         INTEL_ISHTP = 0x1F,
         AMD_SFH     = 0x20,
+        SDW         = 0x21,
     }
 }
 

@@ -34,6 +34,7 @@ ffi_enum! {
         /// Some accelerometer devices will also send gyroscope data using `ABS_RX`, `ABX_RY`, and
         /// `ABS_RZ`.
         ACCELEROMETER = 0x06,
+        PRESSUREPAD   = 0x07,
     }
 }
 impl InputProp {
