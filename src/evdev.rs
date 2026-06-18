@@ -843,7 +843,7 @@ impl Evdev {
         read_raw(&self.file, buf)
     }
 
-    /// Uploads a force-feedback effect to the device.
+    /// Uploads or modifies a force-feedback effect.
     ///
     /// This is always a blocking operation, even if the [`Evdev`] is in non-blocking mode.
     /// If the device is a `uinput` device, bugs in the userspace driver might cause this to block
@@ -853,6 +853,8 @@ impl Evdev {
     /// [`Evdev::supported_ff_features`] for the supported force-feedback feature set.
     ///
     /// Uploaded effects will stay in device memory until removed via [`Evdev::erase_ff_effect`].
+    /// They can be modified by using [`ff::Effect::with_id`] to create an effect that will
+    /// overwrite the effect with the given ID instead of allocating a new one.
     #[doc(alias = "EVIOCSFF")]
     pub fn upload_ff_effect<'a>(
         &self,
