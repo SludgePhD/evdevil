@@ -86,7 +86,7 @@ impl<'a> FFTest<'a> {
 
         match self.t.uinput.events().next().unwrap()?.kind() {
             EventKind::ForceFeedback(ev) => {
-                assert_eq!(ev.code(), Some(ForceFeedbackCode::ControlEffect(id)));
+                assert_eq!(ev.code(), ForceFeedbackCode::ControlEffect(id));
                 assert_eq!(ev.raw_value(), if play { 1 } else { 0 });
             }
             e => panic!("unexpected event: {e:?}"),
@@ -112,7 +112,7 @@ impl<'a> FFTest<'a> {
         // uinput will always send a stop event first.
         match self.t.uinput.events().next().unwrap()?.kind() {
             EventKind::ForceFeedback(ev) => {
-                assert_eq!(ev.code(), Some(ForceFeedbackCode::ControlEffect(id)));
+                assert_eq!(ev.code(), ForceFeedbackCode::ControlEffect(id));
                 assert_eq!(ev.raw_value(), 0);
             }
             e => panic!("unexpected event: {e:?}"),

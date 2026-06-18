@@ -725,16 +725,19 @@ impl ForceFeedbackEvent {
         ))
     }
 
+    /// Decodes the event code as a [`ForceFeedbackCode`].
+    ///
+    /// [`InputEvent::raw_code`] can be used to access the code as a raw [`u16`].
     #[inline]
-    pub fn code(&self) -> Option<ForceFeedbackCode> {
+    pub fn code(&self) -> ForceFeedbackCode {
         const FF_GAIN: u16 = ff::Feature::GAIN.0;
         const FF_AUTOCENTER: u16 = ff::Feature::AUTOCENTER.0;
 
         match self.raw_code() {
-            id if id < FF_GAIN => Some(ForceFeedbackCode::ControlEffect(EffectId(id as i16))),
-            FF_GAIN => Some(ForceFeedbackCode::SetGain),
-            FF_AUTOCENTER => Some(ForceFeedbackCode::SetAutocenter),
-            _ => None,
+            id if id < FF_GAIN => ForceFeedbackCode::ControlEffect(EffectId(id as i16)),
+            FF_GAIN => ForceFeedbackCode::SetGain,
+            FF_AUTOCENTER => ForceFeedbackCode::SetAutocenter,
+            raw => ForceFeedbackCode::__Unknown(raw),
         }
     }
 }
@@ -762,18 +765,24 @@ pub enum ForceFeedbackCode {
     /// This may be sent with an unassigned or invalid [`EffectId`]. Consumers should ignore events
     /// in that case.
     ///
-    /// The event value controls whether the effect should play (0 or 1).
+    /// [`InputEvent::raw_value`] controls whether the effect should play (0 or 1).
     ControlEffect(EffectId),
 
     /// Set the master gain of the device.
     ///
-    /// The event value encodes the gain as a fraction of 65535.
+    /// [`InputEvent::raw_value`] encodes the gain as a fraction of 65535.
     SetGain,
 
-    /// Set the autocenter value of the device.
+    /// Set the autocenter force of the device.
     ///
-    /// The event value encodes the autocenter power as a fraction of 65535.
+    /// [`InputEvent::raw_value`] encodes the autocenter power as a fraction of 65535.
     SetAutocenter,
+
+    /// Unknown code with no assigned variant. This should not be matched against by user code, as
+    /// new variants may be added any time.
+    #[doc(hidden)]
+    #[non_exhaustive]
+    __Unknown(u16), // Carries the raw code to make the `(Partial)Eq` impls work right
 }
 
 ffi_enum! {
@@ -847,5 +856,51 @@ mod tests {
             EV.with_time(SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000))
                 .time()
         );
+    }
+
+    #[test]
+    fn ffcode() {
+        match InputEvent::new(EventType::FF, 0, 0).kind() {
+            EventKind::ForceFeedback(ff) => match ff.code() {
+                ForceFeedbackCode::ControlEffect(effect_id) => assert_eq!(effect_id.raw(), 0),
+                code => unreachable!("{code:?}"),
+            },
+            k => unreachable!("{k:?}"),
+        }
+
+        assert_eq!(
+            ForceFeedbackEvent::control_effect(EffectId::from_raw(9), true).code(),
+            ForceFeedbackCode::ControlEffect(EffectId::from_raw(9)),
+        );
+        assert_eq!(
+            ForceFeedbackEvent::control_gain(123).code(),
+            ForceFeedbackCode::SetGain,
+        );
+        assert_eq!(
+            ForceFeedbackEvent::control_autocenter(123).code(),
+            ForceFeedbackCode::SetAutocenter,
+        );
+
+        // Test that `ForceFeedbackCode` takes unknown values into account when being compared.
+        let code9999 = match InputEvent::new(EventType::FF, 9999, 0).kind() {
+            EventKind::ForceFeedback(ff) => match ff.code() {
+                ForceFeedbackCode::ControlEffect(_)
+                | ForceFeedbackCode::SetAutocenter
+                | ForceFeedbackCode::SetGain => unreachable!("{:?}", ff.code()),
+                other => other,
+            },
+            k => unreachable!("{k:?}"),
+        };
+        let code10000 = match InputEvent::new(EventType::FF, 10_000, 0).kind() {
+            EventKind::ForceFeedback(ff) => match ff.code() {
+                ForceFeedbackCode::ControlEffect(_)
+                | ForceFeedbackCode::SetAutocenter
+                | ForceFeedbackCode::SetGain => unreachable!("{:?}", ff.code()),
+                other => other,
+            },
+            k => unreachable!("{k:?}"),
+        };
+        assert_eq!(code9999, code9999);
+        assert_ne!(code9999, code10000);
     }
 }

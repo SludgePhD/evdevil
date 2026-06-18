@@ -21,8 +21,8 @@ async-io = { version = "2.4.1", default-features = false, optional = true }
 
 default = ["log"]
 
-# Uses the `log` crate to log some operations. The precise version of `log` used is not guaranteed
-# and may be updated without notice.
+# Uses the `log` crate to log internal operations. The precise version of `log` used is not
+# stable and may be updated without notice.
 log = ["dep:log"]
 
 # Implements `Serialize` and `Deserialize` for event code types like `Key`, `Rel`, `Abs` etc.

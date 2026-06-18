@@ -111,7 +111,7 @@
 //!             _ => {}
 //!         },
 //!         EventKind::ForceFeedback(ev) => match ev.code() {
-//!             Some(ForceFeedbackCode::ControlEffect(id)) => {
+//!             ForceFeedbackCode::ControlEffect(id) => {
 //!                 println!("FF effect {id:?} set to {}", ev.raw_value());
 //!             },
 //!             _ => {}

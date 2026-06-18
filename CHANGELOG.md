@@ -6,6 +6,7 @@
 
 - `EffectKind` no longer implements `Eq`.
 - `Effect::kind()` now returns `EffectKind` instead of `Option<EffectKind>`.
+- `ForceFeedbackEvent::code()` now returns `ForceFeedbackCode` instead of `Option<ForceFeedbackCode>`.
 - `UnknownVariant` error type is now called `ParseVariantError`.
   - The `From<UnknownVariant> for io::Error` implementation has been removed.
 - `Effect::direction()` now uses a `Direction` wrapper type.
