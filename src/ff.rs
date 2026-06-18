@@ -1147,6 +1147,12 @@ impl fmt::Debug for Condition {
 #[repr(transparent)]
 pub struct Spring(Condition);
 
+impl Spring {
+    pub fn new(condition: Condition) -> Self {
+        Self(condition)
+    }
+}
+
 impl Deref for Spring {
     type Target = Condition;
     #[inline]
@@ -1177,6 +1183,12 @@ impl From<Spring> for Condition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Friction(Condition);
+
+impl Friction {
+    pub fn new(condition: Condition) -> Self {
+        Self(condition)
+    }
+}
 
 impl Deref for Friction {
     type Target = Condition;
@@ -1209,6 +1221,12 @@ impl From<Friction> for Condition {
 #[repr(transparent)]
 pub struct Damper(Condition);
 
+impl Damper {
+    pub fn new(condition: Condition) -> Self {
+        Self(condition)
+    }
+}
+
 impl Deref for Damper {
     type Target = Condition;
     #[inline]
@@ -1239,6 +1257,12 @@ impl From<Damper> for Condition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Inertia(Condition);
+
+impl Inertia {
+    pub fn new(condition: Condition) -> Self {
+        Self(condition)
+    }
+}
 
 impl Deref for Inertia {
     type Target = Condition;
