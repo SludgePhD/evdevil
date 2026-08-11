@@ -156,7 +156,7 @@ use crate::{
         Abs, AbsEvent, EventType, InputEvent, Key, Led, Misc, Rel, Repeat, RepeatEvent, Sound,
         Switch, Syn, SynEvent, UinputCode, UinputEvent,
     },
-    ff::{self, Effect, EffectId},
+    ff::{self, Effect, EffectId, FF_MAX_EFFECTS},
     raw::{
         input::ff_effect,
         uinput::{
@@ -402,9 +402,20 @@ impl Builder {
     ///
     /// Note that you also have to enable the specific force-feedback features you intend to support
     /// by calling [`Builder::with_ff_features`].
+    ///
+    /// Note that the highest accepted number for `ff_max` is 96 (`0x60`), due to limitations of
+    /// the evdev system.
+    /// Any values above that will be rejected with an [`io::ErrorKind::InvalidInput`] error
+    /// (either by this method, or by [`Builder::build`]).
     #[inline]
     pub fn with_ff_effects_max(mut self, ff_max: u32) -> io::Result<Self> {
-        // Returns an `io::Result` so that all the builder methods have the same signature.
+        if ff_max > u32::from(FF_MAX_EFFECTS) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "`ff_max` value is too large",
+            ));
+        }
+
         self.setup.ff_effects_max = ff_max;
         Ok(self)
     }

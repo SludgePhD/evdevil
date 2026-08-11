@@ -114,6 +114,9 @@ impl Feature {
 }
 bitvalue!(Feature);
 
+/// Max. number of uploaded effects: `0x60 (96)`.
+pub(crate) const FF_MAX_EFFECTS: u16 = Feature::GAIN.0;
+
 impl fmt::Debug for Feature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.variant_name() {
