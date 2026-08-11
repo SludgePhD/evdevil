@@ -3,8 +3,11 @@ use std::{
     io,
     mem::{self, offset_of},
     os::{
-        fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
-        unix::ffi::OsStrExt,
+        fd::{AsRawFd, FromRawFd, OwnedFd},
+        unix::{
+            ffi::OsStrExt,
+            prelude::{AsFd, BorrowedFd},
+        },
     },
     path::PathBuf,
     thread,
@@ -41,17 +44,17 @@ pub(crate) struct Impl {
     fd: OwnedFd,
 }
 
-impl AsRawFd for Impl {
+impl AsFd for Impl {
     #[inline]
-    fn as_raw_fd(&self) -> RawFd {
-        self.fd.as_raw_fd()
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
     }
 }
 
-impl IntoRawFd for Impl {
+impl Into<OwnedFd> for Impl {
     #[inline]
-    fn into_raw_fd(self) -> RawFd {
-        self.fd.into_raw_fd()
+    fn into(self) -> OwnedFd {
+        self.fd
     }
 }
 
@@ -93,8 +96,8 @@ impl super::HotplugImpl for Impl {
         let mut buf = [0u8; 8192];
         loop {
             unsafe {
-                let len =
-                    cvt_r(|| recv(self.as_raw_fd(), buf.as_mut_ptr().cast(), buf.len() as _, 0))?;
+                let fd = self.fd.as_raw_fd();
+                let len = cvt_r(|| recv(fd, buf.as_mut_ptr().cast(), buf.len() as _, 0))?;
                 let msg = &buf[..len as usize];
 
                 // The messages we're looking for are newline-terminated and look like this:

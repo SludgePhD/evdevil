@@ -35,14 +35,14 @@ use std::{
     fmt, io,
     os::{
         fd::{AsFd, AsRawFd, IntoRawFd, RawFd},
-        unix::prelude::BorrowedFd,
+        unix::prelude::{BorrowedFd, OwnedFd},
     },
     path::{Path, PathBuf},
 };
 
 use crate::{Evdev, util::set_nonblocking};
 
-trait HotplugImpl: Sized + AsRawFd + IntoRawFd {
+trait HotplugImpl: Sized + AsFd + Into<OwnedFd> {
     fn open() -> io::Result<Self>;
     fn read(&self) -> io::Result<HotplugEvent>;
 }
@@ -69,21 +69,28 @@ impl fmt::Debug for HotplugMonitor {
 impl AsRawFd for HotplugMonitor {
     #[inline]
     fn as_raw_fd(&self) -> RawFd {
-        self.imp.as_raw_fd()
+        self.imp.as_fd().as_raw_fd()
     }
 }
 
 impl IntoRawFd for HotplugMonitor {
     #[inline]
     fn into_raw_fd(self) -> RawFd {
-        self.imp.into_raw_fd()
+        OwnedFd::from(self).into_raw_fd()
     }
 }
 
 impl AsFd for HotplugMonitor {
     #[inline]
     fn as_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }
+        self.imp.as_fd()
+    }
+}
+
+impl From<HotplugMonitor> for OwnedFd {
+    #[inline]
+    fn from(value: HotplugMonitor) -> Self {
+        value.imp.into()
     }
 }
 

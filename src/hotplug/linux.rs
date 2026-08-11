@@ -3,8 +3,11 @@ use std::{
     ffi::{OsStr, c_int, c_uint},
     io, mem,
     os::{
-        fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd},
-        unix::{ffi::OsStrExt, prelude::RawFd},
+        fd::{AsRawFd, FromRawFd, OwnedFd},
+        unix::{
+            ffi::OsStrExt,
+            prelude::{AsFd, BorrowedFd},
+        },
     },
     path::PathBuf,
 };
@@ -101,17 +104,17 @@ impl Impl {
     }
 }
 
-impl AsRawFd for Impl {
+impl AsFd for Impl {
     #[inline]
-    fn as_raw_fd(&self) -> RawFd {
-        self.netlink_socket.as_raw_fd()
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.netlink_socket.as_fd()
     }
 }
 
-impl IntoRawFd for Impl {
+impl Into<OwnedFd> for Impl {
     #[inline]
-    fn into_raw_fd(self) -> RawFd {
-        self.netlink_socket.into_raw_fd()
+    fn into(self) -> OwnedFd {
+        self.netlink_socket
     }
 }
 
@@ -138,7 +141,8 @@ impl super::HotplugImpl for Impl {
             msg.msg_name = (&raw mut sender).cast();
             msg.msg_namelen = size_of_val(&sender) as u32;
 
-            let buflen = unsafe { cvt_r(|| recvmsg(self.as_raw_fd(), &mut msg, 0))? };
+            let fd = self.netlink_socket.as_raw_fd();
+            let buflen = unsafe { cvt_r(|| recvmsg(fd, &mut msg, 0))? };
             if buflen < 32 || buflen >= buf.len() as isize {
                 debug!("ignoring message: recvmsg returned invalid message of {buflen} bytes");
                 continue;

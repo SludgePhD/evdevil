@@ -1,36 +1,35 @@
 use std::{
     io,
-    os::{
-        fd::{AsRawFd, IntoRawFd},
-        unix::prelude::RawFd,
-    },
+    os::unix::prelude::{AsFd, BorrowedFd, OwnedFd},
 };
 
 use super::{HotplugEvent, HotplugImpl};
 
 #[allow(dead_code)]
-pub struct Impl {
-    _p: (),
-}
-
-impl AsRawFd for Impl {
-    fn as_raw_fd(&self) -> RawFd {
-        unreachable!("this type cannot be constructed")
-    }
-}
-
-impl IntoRawFd for Impl {
-    fn into_raw_fd(self) -> RawFd {
-        unreachable!("this type cannot be constructed")
-    }
-}
+pub enum Impl {}
 
 impl HotplugImpl for Impl {
+    #[inline]
     fn open() -> io::Result<Self> {
         Err(io::ErrorKind::Unsupported.into())
     }
 
+    #[inline]
     fn read(&self) -> io::Result<HotplugEvent> {
-        unreachable!("this type cannot be constructed")
+        match *self {}
+    }
+}
+
+impl AsFd for Impl {
+    #[inline]
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        match *self {}
+    }
+}
+
+impl Into<OwnedFd> for Impl {
+    #[inline]
+    fn into(self) -> OwnedFd {
+        match self {}
     }
 }
