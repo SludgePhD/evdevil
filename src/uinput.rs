@@ -271,7 +271,13 @@ impl Builder {
     /// [`Evdev::phys`]: crate::Evdev::phys
     #[doc(alias = "UI_SET_PHYS")]
     pub fn with_phys(self, path: &str) -> io::Result<Self> {
-        self.with_phys_cstr(&CString::new(path).unwrap())
+        match CString::new(path) {
+            Ok(cstr) => self.with_phys_cstr(&cstr),
+            Err(_) => Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "provided device name contains a zero byte",
+            )),
+        }
     }
 
     /// Sets the physical path of the device to a [`CStr`].
