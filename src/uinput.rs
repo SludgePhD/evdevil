@@ -778,9 +778,12 @@ impl UinputDevice {
     /// and also to whichever process attempted to upload the effect.
     /// This requires a conversion to a C style `E*` error constant.
     ///
-    /// If `handler` returns a native OS error (eg. via [`io::Error::last_os_error`] or
-    /// [`io::Error::from_raw_os_error`]), that error code will be returned directly, without
+    /// If `handler` returns a native OS error (eg. via `io::Error::last_os_error` or
+    /// `io::Error::from_raw_os_error`), that error code will be returned directly, without
     /// modification.
+    ///
+    /// <!-- FIXME: the above references to `io::Error` aren't linked due to
+    /// https://github.com/rust-lang/rust/issues/161699 -->
     ///
     /// Otherwise, the [`io::ErrorKind`] of the error is converted to something sensible, falling
     /// back to returning the generic `EIO` error when there is no suitable error code.
