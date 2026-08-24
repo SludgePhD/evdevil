@@ -39,14 +39,9 @@
 //! use evdevil::{event::{Key, Led, KeyEvent, KeyState, EventKind}, uinput::UinputDevice};
 //!
 //! let dev = UinputDevice::builder()?
-//!     .with_keys([Key::KEY_Q])?
 //!     .with_leds([Led::CAPSL])?
 //!     .build("My LED Device")?;
 //!
-//! dev.write_events(&[KeyEvent::new(Key::KEY_Q, KeyState::PRESSED).into()])?;
-//! dev.write_events(&[KeyEvent::new(Key::KEY_Q, KeyState::RELEASED).into()])?;
-//!
-//! // In another thread:
 //! # return Ok(());  // Don't block
 //! for res in dev.events() {
 //!     let event = res?;
@@ -63,7 +58,7 @@
 //!
 //! # Force-Feedback
 //!
-//! In evdev, force-feedback effects are used in two stages.
+//! If an evdev client wants to use force-feedback, it has to follow these two steps:
 //!
 //! 1. An effect is uploaded to the device using [`Evdev::upload_ff_effect`], yielding an
 //!    [`EffectId`] that identifies the uploaded effect.
@@ -72,7 +67,7 @@
 //!
 //! The uinput interface mirrors this approach.
 //!
-//! 1. When an evdev user requests an effect to be uploaded, a [`UinputEvent`] is enqueued for the
+//! 1. When an evdev client requests an effect to be uploaded, a [`UinputEvent`] is enqueued for the
 //!    [`UinputDevice`]. The uinput driver reads the event and calls [`UinputDevice::ff_upload`] to
 //!    finish the upload.
 //! 2. When userspace starts or stops the effect, the [`UinputDevice`] receives the
@@ -82,7 +77,7 @@
 //! have to be used to advertise the force-feedback support to other programs when creating the
 //! device.
 //!
-//! A uinput device that supports force-feedback effects and exposes an LED that can be controlled:
+//! Here's an example for how to create a simple force-feedback device:
 //!
 //! ```
 //! use evdevil::event::{Rel, EventKind, Led, ForceFeedbackCode, UinputCode};
@@ -772,7 +767,7 @@ impl UinputDevice {
         block_until_readable(self.as_raw_fd())
     }
 
-    /// Performs a requested force-feedback effect upload or update.
+    /// Performs a force-feedback effect upload or update requested by a client.
     ///
     /// This should be called when receiving a [`UinputEvent`] with a code of
     /// [`UinputCode::FF_UPLOAD`].
