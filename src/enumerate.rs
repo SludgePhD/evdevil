@@ -26,7 +26,7 @@ use crate::{Evdev, hotplug::HotplugMonitor};
 ///
 /// Performing enumeration can block for a significant amount of time while opening and closing the
 /// *evdev* device files.
-/// In user-facing applications, it is recommended to perform enumeration in a background thread.
+/// In interactive applications, it is recommended to perform enumeration in a background thread.
 ///
 /// # Errors
 ///

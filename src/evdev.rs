@@ -60,13 +60,10 @@ use crate::{
 /// When an [`Evdev`] is dropped, the underlying file descriptor is closed, which can block for a
 /// considerable amount of time (50-100 ms).
 /// This is happening in the evdev subsystem in the kernel, so there is not much userspace can do
-/// about that.
+/// about it.
 ///
-/// If this delay is a problem for your application, there are several options:
-///
-/// - Send the [`Evdev`] to another thread and drop it there.
-/// - [`mem::forget`][std::mem::forget] the [`Evdev`] and leak the file descriptor, if that leak is
-///   acceptable for your application.
+/// If this delay is a problem for your application, you can send the [`Evdev`] handle to a
+/// background thread and drop it there.
 ///
 /// # Device Lifecycle
 ///
@@ -399,8 +396,8 @@ impl Evdev {
     /// Fetches device hardware information as an [`InputId`].
     #[doc(alias = "EVIOCGID")]
     pub fn input_id(&self) -> io::Result<InputId> {
-        let mut out = MaybeUninit::uninit();
         unsafe {
+            let mut out = MaybeUninit::uninit();
             self.ioctl("EVIOCGID", EVIOCGID, out.as_mut_ptr())?;
             Ok(InputId(out.assume_init()))
         }
@@ -507,6 +504,8 @@ impl Evdev {
     }
 
     /// Returns the number of force-feedback effects the device can store at the same time.
+    ///
+    /// Returns 0 when the device does not support force-feedback.
     #[doc(alias = "EVIOCGEFFECTS")]
     pub fn supported_ff_effects(&self) -> io::Result<u32> {
         unsafe {
@@ -521,10 +520,14 @@ impl Evdev {
     /// The supported absolute axes can be queried by calling [`Evdev::supported_abs_axes`].
     ///
     /// Calling this with an [`Abs`] axis that isn't supported by the device will either return an
-    /// error or return a meaningless [`AbsInfo`] object with arbitrary values.
+    /// error or return a meaningless [`AbsInfo`] object with arbitrary values, so it should be
+    /// avoided.
+    /// [`Evdev::supported_abs_axes`] can be called to query which [`Abs`] values are valid to
+    /// use with this method.
     ///
     /// Note that many devices don't send the correct values by default, and that userspace
-    /// applications can generally override these values via [`Evdev::set_abs_info`].
+    /// applications can modify these values via [`Evdev::set_abs_info`] (including for unsupoprted
+    /// [`Abs`] values).
     #[doc(alias = "EVIOCGABS")]
     pub fn abs_info(&self, abs: Abs) -> io::Result<AbsInfo> {
         if abs.0 > Abs::MAX.0 {
@@ -533,6 +536,11 @@ impl Evdev {
                 format!("absolute axis {:?} exceeds maximum axis value", abs),
             ));
         }
+
+        // Note that the `ioctl` code depends on the queried `Abs` axis, and the values are chosen
+        // so that no more than 128 `Abs` axes can ever be supported.
+        // To avoid colliding with other `ioctl`s, we reject out-of-range `abs` arguments above
+        // (the kernel can't do it for us).
 
         unsafe {
             let mut out = MaybeUninit::uninit();
@@ -545,8 +553,14 @@ impl Evdev {
     ///
     /// The supported absolute axes can be queried by calling [`Evdev::supported_abs_axes`].
     ///
-    /// This method should generally not be used by applications, as it modifies globally visible
-    /// device properties and can lead to the device not working correctly.
+    /// This method should be used with caution, as it modifies global device properties
+    /// and can lead to the device not working correctly.
+    ///
+    /// Linux allows this method to be used with [`Abs`] values that the device does not support.
+    /// These values will be treated normally, and can be fetched by [`Evdev::abs_info`] after they
+    /// are set.
+    /// Applications should avoid making use of this "functionality", since it does not appear to
+    /// be something that "should" work.
     #[doc(alias = "EVIOCSABS")]
     pub fn set_abs_info(&self, abs: Abs, info: AbsInfo) -> io::Result<()> {
         if abs.0 > Abs::MAX.0 {
@@ -555,6 +569,8 @@ impl Evdev {
                 format!("absolute axis {:?} exceeds maximum axis value", abs),
             ));
         }
+
+        // (`ioctl` comment from `abs_info` applies here as well)
 
         unsafe {
             self.ioctl("EVIOCSABS", EVIOCSABS(abs.raw() as u8), &info.0)?;

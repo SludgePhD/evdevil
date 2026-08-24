@@ -446,5 +446,12 @@ fn test_abs_info() -> io::Result<()> {
     let info = t.evdev().abs_info(Abs::BRAKE)?;
     assert_eq!(info, ABS_INFO_BRAKE);
 
+    // Test kernel behavior for unsupported `Abs` values.
+    let info = t.evdev().abs_info(Abs::GAS)?;
+    assert_eq!(info, AbsInfo::new(0, 0));
+    t.evdev().set_abs_info(Abs::GAS, ABS_INFO_BRAKE)?;
+    let info = t.evdev().abs_info(Abs::GAS)?;
+    assert_eq!(info, ABS_INFO_BRAKE);
+
     Ok(())
 }
